@@ -182,30 +182,38 @@ form .button{
          <header>Sign up</header>
          <form action="/signup" method="post" id="signupForm">
             <div class="input-field">
-                <input type="text" placeholder="Full Name" id="name" name="name" required />
+                <input type="text" placeholder="Full Name" id="name" name="name"   value="<%= locals.formData ? formData.name : '' %>" required />
                 <div class="error" id="error1"></div>
                 </div>
                 <div class="input-field">
-                <input type="email" placeholder="Email" id="email" name="email" required />
-                <div class="error" id="error2"></div>
+                <input type="email" placeholder="Email" id="email" name="email"   value="<%= locals.formData ? formData.email : '' %>" required  />
+                <div class="error" id="error2">
+                  <% if(locals.message && locals.errorField === 'email') { %>
+                    <div class="alert alert-danger text-center">
+                        <%= message %>
+                    </div>
+                <% } %>
+                </div>
                 </div>
                 <div class="input-field">
-                <input type="text" placeholder="Phone" id="phone" name="phone" required />
+                <input type="text" placeholder="Phone" id="phone" name="phone"  value="<%= locals.formData ? formData.phone : '' %>" required />
                 <div class="error" id="error3"></div>
                 </div>
                 <div class="input-field">
-                <input type="password" placeholder="Password" id="password" name="password" required />
+                <input type="password" placeholder="Password(eg:Derby@25)" id="password" name="password" required />
                 <div class="error" id="error4"></div>
                 </div>
                 <div class="input-field">
                 <input type="password" placeholder="Confirm Password" id="confirm-password" name="Cpassword" required />
-                <div class="error" id="error5"></div>
-                </div>
-                <%if(locals.message && message.length>0){%>
-                    <div class ="alert alert-danger text-center">
-                        <%=message%>
+                <div class="error" id="error5">
+                  <% if(locals.message && !locals.errorField) { %>
+                    <div class="alert alert-danger text-center">
+                        <%= message %>
                     </div>
-                <%}%>
+                <% } %>
+                </div>
+                </div>
+               
             
             <div class="button">
                <div class="inner"></div>
@@ -245,6 +253,28 @@ form .button{
     const Error5 = document.getElementById("error5");
     const signupForm = document.getElementById("signupForm");
 
+
+    if (Error2.querySelector('.alert')) {
+        Error2.style.display = 'block';
+    }
+    if (Error5.querySelector('.alert')) {
+        Error5.style.display = 'block';
+    }
+
+
+    cPasswordid.addEventListener("paste", function(e) {
+            e.preventDefault();
+            Error5.style.display = "block";
+            Error5.innerHTML = "Pasting password is not allowed for security reasons.";
+            
+            // Hide the error message after 3 seconds
+            setTimeout(() => {
+                Error5.style.display = "none";
+            }, 3000);
+        });
+
+  
+
     function nameValidateChecking() {
         const nameVal = nameid.value.trim();
         const namePattern = /^[A-Za-z\s]+$/;
@@ -265,6 +295,8 @@ form .button{
     function emailValidateChecking() {
         const emailVal = emailid.value.trim();
         const emailPattern = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/;
+
+
         if (!emailPattern.test(emailVal)) {
             Error2.style.display = "block";
             Error2.innerHTML = "Invalid email format.";
@@ -275,46 +307,7 @@ form .button{
         }
     }
 
-    // function phoneValidateChecking() {
-    //     const phoneVal = phoneid.value.trim();
-    //     if (phoneVal === "" || phoneVal.length !== 10 || !/^\d{10}$/.test(phoneVal)) {
-    //         Error3.style.display = "block";
-    //         Error3.innerHTML = "Phone number must be exactly 10 digits.";
-    //         return false;
-    //     } else {
-    //         Error3.style.display = "none";
-    //         return true;
-    //     }
-    // }
-
-    // function passValidateChecking() {
-    //     const passVal = passid.value.trim();
-    //     const cpassVal = cPasswordid.value.trim();
-    //     const alpha = /[a-zA-Z]/;
-    //     const digit = /\d/;
-
-    //     let valid = true;
-    //     if (passVal.length < 8) {
-    //         Error4.style.display = "block";
-    //         Error4.innerHTML = "Password must contain at least 8 characters.";
-    //         valid = false;
-    //     } else if (!alpha.test(passVal) || !digit.test(passVal)) {
-    //         Error4.style.display = "block";
-    //         Error4.innerHTML = "Password must contain both letters and numbers.";
-    //         valid = false;
-    //     } else {
-    //         Error4.style.display = "none";
-    //     }
-
-    //     if (passVal !== cpassVal) {
-    //         Error5.style.display = "block";
-    //         Error5.innerHTML = "Passwords do not match.";
-    //         valid = false;
-    //     } else {
-    //         Error5.style.display = "none";
-    //     }
-    //     return valid;
-    // }
+    
 
     function phoneValidateChecking() {
     const phoneVal = phoneid.value.trim();
@@ -350,6 +343,11 @@ form .button{
     const specialCharRegex = /[@$!%*?&]/;
 
     let valid = true;
+
+    const serverError = Error5.querySelector('.alert');
+        if (serverError) {
+            serverError.style.display = 'none';
+        }
 
     // Check length
     if (!lengthRegex.test(passVal)) {

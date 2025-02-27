@@ -252,7 +252,7 @@
                 <th scope="col"><b>Category</b></th>
                 <th scope="col"><b>Regular Price</b></th>
                 <th scope="col"><b>Sale Price</b></th>
-                <!-- <th scope="col"><b>Offer Price</b></th> -->
+                <th scope="col"><b>Offer Price</b></th>
                 <!-- <th scope="col"><b>Offer</b></th> -->
                 <th scope="col"><b>Total Qty</b></th>
                 <th scope="col"><b>Sizes & Qty</b></th>
@@ -270,6 +270,16 @@
                     <td><%= data[i].category ? data[i].category.name : "N/A" %></td>
                     <td><%= data[i].regularPrice %></td>
                     <td><%= data[i].salePrice %></td>
+                    <!-- Add this in your table row where you want to show offer details -->
+<td>
+    <% if (data[i].offer && data[i].offer.isActive) { %>
+        <span class="badge bg-success"><%= data[i].offer.percentage %>% off</span>
+        <br>
+        <small>Valid: <%= new Date(data[i].offer.startDate).toLocaleDateString() %> to <%= new Date(data[i].offer.endDate).toLocaleDateString() %></small>
+    <% } else { %>
+        <span class="badge bg-secondary">No active offer</span>
+    <% } %>
+</td>
                     <td><%= data[i].quantity %></td>
                     <td>
                         <% if (data[i].sizes && data[i].sizes.length > 0) { %>

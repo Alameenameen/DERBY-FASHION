@@ -158,6 +158,38 @@
                 text-align: left;
             }
         }
+        .order-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.status-delivered { background-color: #28a745; color: white; }
+.status-cancelled { background-color: #dc3545; color: white; }
+.status-pending { background-color: #ffc107; color: black; }
+.status-processing { background-color: #17a2b8; color: white; }
+.status-return { background-color: #6c757d; color: white; }
+.status-returned { background-color: #6c757d; color: white; }
+
+.total-section {
+    margin-top: 20px;
+    padding: 15px;
+    border-top: 1px solid #dee2e6;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.grand-total {
+    font-weight: bold;
+    font-size: 1.2em;
+    border-top: 2px solid #dee2e6;
+    padding-top: 10px;
+}
     </style>
 
 
@@ -167,13 +199,41 @@
     <div class="order-info">
         <p><strong>Order ID:</strong> <%= order._id %></p>
         <p class="order-date">Placed on: <%= new Date(order.createdOn).toLocaleDateString() %></p>
-        <p><strong>Status:</strong>
+        <p><strong>Order Status:</strong>
             <span class="order-status status-<%= order.status.toLowerCase() %>">
-                <%= order.status %>
+                <% 
+                let displayOrderStatus = order.status;
+                if (order.status === 'payment_failed') {
+                    displayOrderStatus = 'Pending';
+                } else if (order.PaymentMethod === 'Online' && order.status === 'Processing') {
+                    displayOrderStatus = 'Processing';
+                }
+                %>
+                <%= displayOrderStatus %>
             </span>
         </p>
+        <% if(order.PaymentMethod !== 'COD' && order.PaymentMethod !== 'Wallet'){%>
+        <p><strong>Payment Status:</strong>
+            <span class="order-status status-<%= order.status === 'payment_failed' ? 'cancelled' : 'delivered' %>">
+                <%= order.status === 'payment_failed' ? 'Failed' : 'Paid' %>
+            </span>
+        </p>
+        <%}%>
+
+
+        <% if (order.status === 'payment_failed' && order.PaymentMethod === 'Online') { %>
+            <div class="payment-failed-alert alert alert-warning" role="alert">
+                <h4 class="alert-heading">Payment Failed!</h4>
+                <p>Your payment was not successful. You can retry the payment using the button below.</p>
+                <button id="retryPaymentBtn" class="btn btn-primary" data-order-id="<%= order._id %>">
+                    Retry Payment
+                </button>
+            </div>
+        <% } %>
     </div>
 
+
+    <% if (order.status !== 'payment_failed') { %>
     <h2>Order Tracking</h2>
     <div class="tracking">
         <% const trackingSteps = ['Processing', 'Shipped', 'Out for Delivery', 'Delivered']; %>
@@ -187,46 +247,275 @@
             </div>
         <% }); %>
     </div>
+    <% } %>
 
-    <h2>Items Ordered</h2>
-    <table>
-        <thead>
+    <% if (order.status !== 'payment_failed' && order.status !== 'cancelled') { %>
+        <a href="/order/invoice/<%= order._id %>" class="btn btn-primary">
+            Download Invoice
+        </a>
+    <% } %>
+
+   <!-- Replace your existing order summary sections with this updated code -->
+
+   <h2>Items Ordered</h2>
+   <%
+ 
+
+   const isOnlineOrWalletPayment = order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet';
+
+   const calculateOrderTotals = (order) => {
+    const summary = {
+        originalSubtotal: 0,
+        currentSubtotal: 0,
+        refundedAmount: 0,
+        shippingCharge: order.shippingCharge || 50,
+        isFullyReturnedOrCancelled: false,
+        activeItems: 0,
+        returnRequestItems: 0,
+        couponDiscount: order.couponApplied ? (order.couponDetails.discountAmount || 0) : 0
+    };
+
+    // Calculate original subtotal
+    order.orderedItems.forEach(item => {
+        const itemTotal = item.quantity * item.price;
+        summary.originalSubtotal += itemTotal;
+    });
+
+    // Distribute the coupon discount proportionally across all items
+    const discountRatio = summary.originalSubtotal > 0 ? summary.couponDiscount / summary.originalSubtotal : 0;
+
+    order.orderedItems.forEach(item => {
+        const itemTotal = item.quantity * item.price;
+        const itemDiscount = itemTotal * discountRatio; // Proportional discount for the item
+        const paidItemTotal = itemTotal - itemDiscount; // Effective amount paid for this item
+
+        if (item.status === 'Return Request') {
+            summary.returnRequestItems++;
+            summary.refundedAmount += paidItemTotal; // Refund only the discounted price
+        } else if (item.status === 'cancelled' || item.status === 'Returned') {
+            summary.refundedAmount += paidItemTotal; 
+        } else {
+            summary.activeItems++;
+            summary.currentSubtotal += paidItemTotal;
+        }
+    });
+
+    // Check if order is fully returned/cancelled
+    summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
+        ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+    );
+
+    // Adjust shipping refund if entire order is canceled/returned
+    if (summary.isFullyReturnedOrCancelled) {
+        if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
+            summary.refundedAmount += summary.shippingCharge;
+        }
+    }
+
+    // Calculate final amounts
+    summary.originalTotal = summary.originalSubtotal + summary.shippingCharge;
+    summary.currentTotal = summary.isFullyReturnedOrCancelled ? 
+        summary.originalTotal : 
+        (summary.currentSubtotal + summary.shippingCharge - summary.couponDiscount);
+
+    return summary;
+};
+
+   const totals = calculateOrderTotals(order);
+   const showRefund = order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet';
+   %>
+   
+   <table>
+       <thead>
+           <tr>
+               <th>Product</th>
+               <th>Image</th>
+               <th>Quantity</th>
+               <th>Price</th>
+               <th>Total</th>
+               <th>Status</th>
+               <th>Actions</th>
+           </tr>
+       </thead>
+   
+       <tbody>
+        <% order.orderedItems.forEach(item => { %>
             <tr>
-                <th>Product</th>
-                <th>Image</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Total</th>
+                <td data-label="Product"><%= item.product.productName %></td>
+                <td>
+                    <img src="/uploads/<%= item.product.productImage[0] %>" 
+                         alt="<%= item.product.productName %>"
+                         class="img-fluid rounded-circle"
+                         style="width: 40px; height: 40px;">
+                </td>
+                <td data-label="Quantity"><%= item.quantity %></td>
+                <td data-label="Price">₹<%= item.price.toFixed(2) %></td>
+                <td data-label="Total">
+                    <% if ((item.status === 'cancelled' || item.status === 'Returned') && showRefund) { %>
+                        <s>₹<%= (item.quantity * item.price).toFixed(2) %></s>
+                        <span class="text-muted">(Refunded)</span>
+                    <% } else { %>
+                        ₹<%= (item.quantity * item.price).toFixed(2) %>
+                    <% } %>
+                </td>
+                <td data-label="Status">
+                    <% if (order.status === 'Returned' && item.status === 'Return Request') { %>
+                        <span class="badge bg-success">Returned</span>
+                    <% } else { %>
+                        <span class="badge bg-info"><%= item.status %></span>
+                    <% } %>
+                </td>
+                
+                <td data-label="Actions">
+                    <% if ((item.status === 'pending' || item.status === 'processing') && 
+                          order.status !== 'cancelled') { %>
+                        <button class="btn btn-danger btn-sm cancel-item-btn" 
+                                data-order-id="<%= order._id %>" 
+                                data-item-id="<%= item._id %>">
+                            Cancel Item
+                        </button>
+                    <% } %>
+                    
+                    <% 
+                    // Calculate days since delivery
+                    let showReturnButton = false;
+                    if (item.status === 'delivered' && 
+                        order.status === 'delivered' && 
+                        !['Return Request', 'Returned', 'cancelled'].includes(item.status)) {
+                        
+                        // Check for deliveredDate instead of deliveredAt
+                        const deliveredDate = new Date(order.deliveredDate);
+                        const currentDate = new Date();
+                        
+                        // Only calculate if deliveredDate is valid
+                        if (deliveredDate instanceof Date && !isNaN(deliveredDate)) {
+                            const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
+                            showReturnButton = daysSinceDelivery <= 7;
+                        }
+                    }
+                    %>
+                    
+                   
+                    
+                    <% if (showReturnButton) { %>
+                        <button class="btn btn-warning btn-sm return-item-btn" 
+                                data-order-id="<%= order._id %>" 
+                                data-item-id="<%= item._id %>">
+                            Return Item
+                        </button>
+                    <% } %>
+                    
+                    <% if (item.status === 'Return Request') { %>
+                        <span class="badge bg-warning">Return Pending</span>
+                    <% } %>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            <% order.orderedItems.forEach(item => { %>
-                <tr>
-                    <td data-label="Product"><%= item.product.productName %></td>
-                    <td>
-                        <img src="/uploads/<%= item.product.productImage[0] %>" 
-                             alt="<%= item.product.productName %>"
-                             class="img-fluid rounded-circle"
-                             style="width: 40px; height: 40px;">
-                    </td>
-                    <td data-label="Quantity"><%= item.quantity %></td>
-                    <td data-label="Price">₹<%= item.price.toFixed(2) %></td>
-                    <td data-label="Total">₹<%= (item.quantity * item.price).toFixed(2) %></td>
-                </tr>
-            <% }); %>
-        </tbody>
-    </table>
+        <% }); %>
+    </tbody>
+     <!-- <tbody>
+           <% order.orderedItems.forEach(item => { %>
+               <tr>
+                   <td data-label="Product"><%= item.product.productName %></td>
+                   <td>
+                       <img src="/uploads/<%= item.product.productImage[0] %>" 
+                            alt="<%= item.product.productName %>"
+                            class="img-fluid rounded-circle"
+                            style="width: 40px; height: 40px;">
+                   </td>
+                   <td data-label="Quantity"><%= item.quantity %></td>
+                   <td data-label="Price">₹<%= item.price.toFixed(2) %></td>
+                   <td data-label="Total">
+                       <% if ((item.status === 'cancelled' || item.status === 'Returned') && showRefund) { %>
+                           <s>₹<%= (item.quantity * item.price).toFixed(2) %></s>
+                           <span class="text-muted">(Refunded)</span>
+                       <% } else { %>
+                           ₹<%= (item.quantity * item.price).toFixed(2) %>
+                       <% } %>
+                   </td>
+                   <td data-label="Status">
+                    <% if (order.status === 'Returned' && item.status === 'Return Request') { %>
+                        <span class="badge bg-success">Returned</span>
+                    <% } else { %>
+                        <span class="badge bg-info"><%= item.status %></span>
+                    <% } %>
+                   </td>
+                   
+                   <td data-label="Actions">
+                    <% if ((item.status === 'pending' || item.status === 'processing') && 
+                          order.status !== 'cancelled') { %>
+                        <button class="btn btn-danger btn-sm cancel-item-btn" 
+                                data-order-id="<%= order._id %>" 
+                                data-item-id="<%= item._id %>">
+                            Cancel Item
+                        </button>
+                    <% } %>
+                    
+                    <% 
+                    // Calculate days since delivery
+                    let showReturnButton = false;
+                    if (order.status === 'delivered') {
+                        const deliveredDate = new Date(order.deliveredAt);
+                        const currentDate = new Date();
+                        const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
+                        showReturnButton = daysSinceDelivery <= 7;
+                    }
+                    %>
+                    
+                    <% if (showReturnButton) { %>
+                        <button class="btn btn-warning btn-sm return-item-btn" 
+                                data-order-id="<%= order._id %>" 
+                                data-item-id="<%= item._id %>">
+                            Return Item
+                        </button>
+                    <% } %>
+                    
+                    <% if (item.status === 'Return Request') { %>
+                        <span class="badge bg-warning">Return Pending</span>
+                    <% } %>
+                </td>
+                   
+               </tr>
+           <% }); %>
+       </tbody> -->
+   </table>
 
-    <div class="total-section">
-        <div class="total-row">
-            <span>Subtotal:</span>
-            <span>₹<%= order.orderedItems.reduce((sum, item) => sum + item.quantity * item.price, 0).toFixed(2) %></span>
-        </div>
-        <div class="total-row grand-total">
-            <span>Total:</span>
-            <span>₹<%= order.finalAmount.toFixed(2) %></span>
-        </div>
+ <!-- Updated Order Summary Section -->
+<div class="total-section">
+    <div class="total-row">
+        <span>Subtotal:</span>
+        <span>₹<%= totals.originalSubtotal.toFixed(2) %></span>
     </div>
+    
+    <% if (order.couponApplied && order.couponDetails) { %>
+        <div class="total-row discount">
+            <span>Coupon Applied (<%= order.couponDetails.couponName %>):</span>
+            <span>-₹<%= (order.couponDetails.discountAmount || 0).toFixed(2) %></span>
+        </div>
+    <% } %>
+    
+    <div class="total-row">
+        <span>Shipping Charge:</span>
+        <span>₹<%= totals.shippingCharge.toFixed(2) %></span>
+    </div>
+    
+    <div class="total-row grand-total">
+        <span>Amount Paid:</span>
+        <span>₹<%= order.finalAmount.toFixed(2) %></span>
+    </div>
+    
+    <% if (totals.isFullyReturnedOrCancelled && isOnlineOrWalletPayment) { %>
+        <div class="total-row text-success">
+            <span>Refunded Amount:</span>
+            <span>₹<%= totals.refundedAmount.toFixed(2) %></span>
+        </div>
+    <% } else if (isOnlineOrWalletPayment && totals.refundedAmount > 0) { %>
+        <div class="total-row text-success">
+            <span>Refunded Amount:</span>
+            <span>₹<%= totals.refundedAmount.toFixed(2) %></span>
+        </div>
+    <% } %>
+    
+</div>
 
     <h2>Shipping Address</h2>
     <p>
@@ -288,10 +577,166 @@
             <button class="btn cancel-btn" data-order-id="<%= order._id %>">Cancel Order</button>
         <% } %>
     </div>
+
+    <div class="modal fade" id="returnItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Return Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="returnItemForm">
+                        <div class="mb-3">
+                            <label for="itemReturnReason" class="form-label">Reason for Return</label>
+                            <select class="form-select" id="itemReturnReason" required>
+                                <option value="">Select a reason</option>
+                                <option value="Wrong Size">Wrong Size</option>
+                                <option value="Damaged Product">Damaged Product</option>
+                                <option value="Not as Described">Not as Described</option>
+                                <option value="Changed Mind">Changed Mind</option>
+                                <option value="Quality Issue">Quality Issue</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div id="otherItemReasonContainer" style="display:none;">
+                            <label for="otherItemReason" class="form-label">Please specify</label>
+                            <textarea class="form-control" id="otherItemReason" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="submitItemReturnBtn">Submit</button>
+                </div>
+            </div>
+        </div>
     </div>
 
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Add JavaScript for handling item actions -->
+    <script>
+
+
+   
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle Cancel Item
+        document.querySelectorAll('.cancel-item-btn').forEach(button => {
+            button.addEventListener('click', async function() {
+                const orderId = this.getAttribute('data-order-id');
+                const itemId = this.getAttribute('data-item-id');
+                
+                const result = await Swal.fire({
+                    title: 'Cancel Item?',
+                    text: 'Are you sure you want to cancel this item?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, cancel it',
+                    cancelButtonText: 'No, keep it'
+                });
     
-<script>
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/cancel-order-item/${orderId}/${itemId}`, {
+                            method: 'POST'
+                        });
+                        const data = await response.json();
+    
+                        if (data.success) {
+                            Swal.fire('Cancelled!', 'Item has been cancelled.', 'success')
+                                .then(() => window.location.reload());
+                        } else {
+                            Swal.fire('Error!', data.error || 'Failed to cancel item.', 'error');
+                        }
+                    } catch (error) {
+                        Swal.fire('Error!', 'An unexpected error occurred.', 'error');
+                    }
+                }
+            });
+        });
+
+    })
+    
+        document.addEventListener('DOMContentLoaded', function() {
+    let currentItemId = null;
+    let currentOrderId = null;
+
+    document.querySelectorAll('.return-item-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            currentOrderId = this.getAttribute('data-order-id');
+            currentItemId = this.getAttribute('data-item-id');
+            const returnItemModal = new bootstrap.Modal(document.getElementById('returnItemModal'));
+            returnItemModal.show();
+        });
+    });
+
+    // Handle return reason selection
+    const itemReturnReason = document.getElementById('itemReturnReason');
+    const otherItemReasonContainer = document.getElementById('otherItemReasonContainer');
+
+    if (itemReturnReason) {
+        itemReturnReason.addEventListener('change', function() {
+            otherItemReasonContainer.style.display =
+                this.value === 'Other' ? 'block' : 'none';
+        });
+    }
+
+    // Handle return submission
+    const submitItemReturnBtn = document.getElementById('submitItemReturnBtn');
+    if (submitItemReturnBtn) {
+        submitItemReturnBtn.addEventListener('click', async function() {
+            if (!currentOrderId || !currentItemId) {
+                Swal.fire('Error', 'Invalid order or item', 'error');
+                return;
+            }
+
+            const returnReason = itemReturnReason.value;
+            const otherReason = document.getElementById('otherItemReason').value;
+
+            if (!returnReason) {
+                Swal.fire('Error', 'Please select a return reason', 'error');
+                return;
+            }
+
+            if (returnReason === 'Other' && !otherReason.trim()) {
+                Swal.fire('Error', 'Please provide details for "Other" reason', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/return-order-item/${currentOrderId}/${currentItemId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        returnReason: returnReason === 'Other' ? otherReason : returnReason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire('Success!', 'Return request submitted successfully.', 'success')
+                        .then(() => window.location.reload());
+                } else {
+                    Swal.fire('Error!', data.error || 'Failed to submit return request.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error!', 'An unexpected error occurred.', 'error');
+            }
+        });
+    }
+});
+
+    
+
+
+   
+// <script>
     document.querySelectorAll('.cancel-btn').forEach(button => {
         button.addEventListener('click', async function () {
             const orderId = this.getAttribute('data-order-id');
@@ -385,11 +830,104 @@
     });
 });
 
+
+
+document.addEventListener('DOMContentLoaded', function() {
+            const retryPaymentBtn = document.getElementById('retryPaymentBtn');
+            if (retryPaymentBtn) {
+                retryPaymentBtn.addEventListener('click', async function() {
+                    const orderId = this.getAttribute('data-order-id');
+                    
+                    try {
+                        const response = await fetch('/retry-payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ orderId })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            const options = {
+                                key: data.key,
+                                amount: data.amount * 100,
+                                currency: data.currency,
+                                name: "DERBY",
+                                description: "Purchase Order",
+                                order_id: data.orderId,
+                                handler: async function (response) {
+                                    const verifyRes = await fetch('/verify-payment', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            razorpay_order_id: response.razorpay_order_id,
+                                            razorpay_payment_id: response.razorpay_payment_id,
+                                            razorpay_signature: response.razorpay_signature
+                                        })
+                                    });
+                                    
+                                    const verifyData = await verifyRes.json();
+                                    
+                                    if (verifyData.success) {
+                                        Swal.fire({
+                                            title: "Payment Successful!",
+                                            text: "Your payment has been processed successfully.",
+                                            icon: "success",
+                                            confirmButtonText: "OK"
+                                        }).then(() => {
+                                            window.location.reload();
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            title: 'Payment Failed!',
+                                            text: 'There was an issue with your payment. Please try again.',
+                                            icon: 'error',
+                                            confirmButtonText: 'OK'
+                                        });
+                                    }
+                                },
+                                prefill: {
+                                    name: "Customer Name",
+                                    email: "customer@example.com",
+                                    contact: "9999999999"
+                                },
+                                theme: {
+                                    color: "#3399cc"
+                                }
+                            };
+                            
+                            const razorpayInstance = new Razorpay(options);
+                            razorpayInstance.open();
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.error || 'Failed to initiate payment.',
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error retrying payment:', error);
+                        Swal.fire({
+                            title: 'Unexpected Error!',
+                            text: 'Something went wrong. Please try again later.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                });
+            }
+        });
+
 </script>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<!-- Include Bootstrap JavaScript -->
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

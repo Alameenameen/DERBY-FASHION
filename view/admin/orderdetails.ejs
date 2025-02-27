@@ -50,6 +50,8 @@
                                 <th>Price</th>
                                 <th>Quantity</th>
                                 <th>Total</th>
+                                <th>Status</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -64,6 +66,29 @@
                                     <td>₹<%= item.product.salePrice.toFixed(2) %></td>
                                     <td><%= item.quantity %></td>
                                     <td>₹<%= (item.product.salePrice * item.quantity).toFixed(2) %></td>
+                                    <td>
+  
+                                        <%= ['cancelled', 'Returned'].includes(item.status) ? item.status : order.status %>
+                                    </td>
+                                    <td>
+                                        <% if (['Return Request', 'Returned', 'cancelled'].includes(order.status) && !['cancelled', 'Returned'].includes(item.status)) { %>
+                                            <span><%= order.status %></span>
+                                        <% } else { %>
+                                            <select 
+                                                class="item-status-select"
+                                                data-item-id="<%= item._id %>"
+                                                data-order-id="<%= order._id %>"
+                                                <%= ['delivered', 'cancelled', 'Returned'].includes(item.status) ? 'disabled' : '' %>
+                                            >
+                                                <option value="">Change Status</option>
+                                                <option value="cancelled" <%= item.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                                                <option value="delivered" <%= item.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                                                <option value="Return Request" <%= item.status === 'Return Request' ? 'selected' : '' %>>Return Requested</option>
+                                                <option value="Returned" <%= item.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+                                            </select>
+                                        <% } %>
+                                    </td>
+                                    
                                 </tr>
                             <% }); %>
                         </tbody>
@@ -154,5 +179,71 @@ th, td {
 .status-badge.delivered { background: #d1e7dd; color: #0f5132; }
 .status-badge.cancelled { background: #f8d7da; color: #721c24; }
 </style>
+
+<script>
+    document.querySelectorAll('.item-status-select').forEach(select => {
+        select.addEventListener('change', async function() {
+            if (!this.value) return;
+            
+            const itemId = this.dataset.itemId;
+            const orderId = this.dataset.orderId;
+            
+            try {
+                const response = await fetch(`/admin/orders/${orderId}/update-item-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        itemId: itemId,
+                        status: this.value
+                    })
+                });
+    
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Item status updated successfully');
+
+
+                    if (data.orderStatus === 'cancelled') {
+                    // Update the order status display if present
+                    const orderStatusElement = document.querySelector('.status-badge');
+                    if (orderStatusElement) {
+                        orderStatusElement.textContent = 'cancelled';
+                        orderStatusElement.className = 'status-badge cancelled';
+                    }
+                    
+                    // Disable all selects as the order is now cancelled
+                    document.querySelectorAll('.item-status-select').forEach(sel => {
+                        sel.disabled = true;
+                    });
+                }
+
+                    if (this.value === 'cancelled' || this.value === 'Returned') {
+                        this.disabled = true;
+                    }
+
+                    const statusCell = this.closest('tr').querySelector('td:nth-child(6)');
+                if (statusCell) {
+                    statusCell.textContent = this.value;
+                }
+                } else {
+                    alert(data.message || 'Error updating item status');
+                    // Reset select to previous value
+                    this.value = this.getAttribute('data-previous-value');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating item status');
+            }
+        });
+    
+        // Store the previous value when focusing on the select
+        select.addEventListener('focus', function() {
+            this.setAttribute('data-previous-value', this.value);
+        });
+    });
+    </script>
 
 <%- include("../../view/partials/admin/footer") %>

@@ -11,6 +11,7 @@ const orderController = require("../controller/user/orderController")
 const walletController = require("../controller/user/walletController")
 const wishlistController = require("../controller/user/wishlistController")
 const {userAuth, isAuthenticated,noCache,incrementProductViews} = require("../middlewares/auth")
+const logger = require('../middlewares/logger');
 
 
 router.use(noCache)
@@ -83,8 +84,21 @@ router.post('/verify-payment',userAuth,verifyPayment)
 router.get('/order/success/:orderId', userAuth,orderController.orderSuccessPage);
 router.post('/cancel-order/:orderId',userAuth,orderController.cancelOrder);
 router.post('/return-order/:orderId', userAuth,orderController.requestReturn);
+router.post('/handle-payment-cancel', userAuth,orderController.handlePaymentCancel);
+router.post('/retry-payment', userAuth,orderController.retryPayment);
 
+router.post('/cancel-order-item/:orderId/:itemId',userAuth, orderController.cancelOrderItem);
+// router.post('/return-order-item/:orderId/:itemId',userAuth,  orderController.returnOrderItem);
+router.get('/order/invoice/:orderId', userAuth, orderController.downloadInvoice);
+// router.post('/orders/:orderId/return-item/:itemId',orderController.returnOrderItem);
+// router.post('/orders/:orderId/approve-return/:itemId?', orderController.approveReturn);
 //coupons
+
+// User routes for order returns
+router.post('/return-order-item/:orderId/:itemId', userAuth, orderController.returnOrderItem);
+
+// Admin routes for managing returns
+// router.post('/admin/approve-return/:orderId/:itemId', adminAuth, orderController.approveReturnItem);
 
 router.post('/coupons/available', couponController.getAvailableCoupons);
 router.post('/coupons/validate', couponController.validateCoupon);

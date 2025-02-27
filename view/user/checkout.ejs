@@ -222,7 +222,7 @@
                                             Size: <%= item.size %> | Qty: <%= item.quantity %>
                                         </small>
                                         <div class="text-primary fw-semibold">
-                                            $<%= item.price.toFixed(2) %>
+                                            ₹<%= item.price.toFixed(2) %>
                                         </div>
                                     </div>
                                 </div>
@@ -255,10 +255,10 @@
                                 <% } %>
                             </span>
                         </div>
-                        <div class="d-flex justify-content-between mb-2">
+                        <!-- <div class="d-flex justify-content-between mb-2">
                             <span>Tax (10%)</span>
                             <span data-tax>₹<%= totals.tax %></span>
-                        </div>
+                        </div> -->
                         <hr>
                         <div class="d-flex justify-content-between mb-3">
                             <strong>Total</strong>
@@ -406,8 +406,22 @@ async function placeOrder() {
         return;
     }
 
-    const cartTotal = parseFloat(<%= totals.totalPrice %>);
+
+    // const cartTotal = parseFloat(<%= totals.totalPrice %>);
+    const totalElement = document.querySelector('[data-total]');
+    const cartTotal = totalElement ? parseInt(totalElement.textContent.replace(/[^0-9.]/g, '')) : parseInt(<%= totals.totalPrice %>);
+
+
+    let couponId = null;
+    if (window.appliedCoupon && window.appliedCoupon.id) {
+        couponId = window.appliedCoupon.id;
+        console.log('Sending coupon ID to backend:', couponId);
+    }
+
     
+    // console.log("///////////////",couponId)
+
+
     // Validate COD limit
     if (selectedPaymentMethod === 'COD' && cartTotal > 1000) {
         Swal.fire({
@@ -428,7 +442,8 @@ async function placeOrder() {
             },
             body: JSON.stringify({
                 addressIndex: parseInt(selectedAddressIndex),
-                paymentMethod: selectedPaymentMethod
+                paymentMethod: selectedPaymentMethod,
+                couponId: couponId 
             })
         });
 
@@ -478,9 +493,49 @@ async function placeOrder() {
                         } else {
                             Swal.fire({
                                 title: 'Payment Failed!',
-                                text: 'There was an issue with your payment. Please try again.',
+                                text: 'There was an issue with your payment.',
                                 icon: 'error',
-                                confirmButtonText: 'OK'
+                                showCancelButton: true,
+                                confirmButtonText: 'View Order',
+                                cancelButtonText: 'Try Again'
+                            }).then((result) => {
+                                if (result.isConfirmed && verifyData.orderId) {
+                                    window.location.href = `/order/success/${verifyData.orderId}`;
+                                } else {
+                                    // Stay on the same page to try again
+                                }
+                            });
+                        }
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            // Handle payment modal dismissal
+                            fetch('/handle-payment-cancel', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    razorpay_order_id: data.orderId
+                                })
+                            }).then(response => response.json())
+                            .then(cancelData => {
+                                if (cancelData.orderId) {
+                                    Swal.fire({
+                                        title: 'Payment Cancelled',
+                                        text: 'You cancelled the payment process.',
+                                        icon: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonText: 'View Order',
+                                        cancelButtonText: 'Go to Home'
+                                    }).then((result) => {
+                                        if (result.isConfirmed) {
+                                            window.location.href = `/order/success/${cancelData.orderId}`;
+                                        } else {
+                                            window.location.href = "/";
+                                        }
+                                    });
+                                }
                             });
                         }
                     },
@@ -534,7 +589,7 @@ async function placeOrder() {
 
 
 
-let appliedCoupon = null;
+// let appliedCoupon = null;
 
 // Fetch available coupons
 async function fetchAvailableCoupons() {
@@ -569,9 +624,9 @@ function displayAvailableCoupons(coupons) {
     const couponHtml = coupons.map(coupon => `
         <div class="border-bottom py-2">
             <strong>${coupon.name}</strong>: 
-            ${coupon.amountType === 'percentage' ? coupon.offerPrice + '%' : '$' + coupon.offerPrice} off
+            ${coupon.amountType === 'percentage' ? coupon.offerPrice + '%' : '₹' + coupon.offerPrice} off
             <br>
-            <small>Min. purchase: $${coupon.minimumPrice}</small>
+            <small>Min. purchase: ₹${coupon.minimumPrice}</small>
             <button class="btn btn-sm btn-link" onclick="applyCoupon('${coupon.name}')">
                 Apply
             </button>
@@ -594,7 +649,9 @@ async function applyCoupon(code) {
         return;
     }
 
-    const subtotal = parseFloat(<%= totals.subtotal %>); // Get the subtotal directly from EJS
+    const subtotalElement = document.querySelector('[data-subtotal]');
+    const subtotal = subtotalElement ? 
+        parseFloat(subtotalElement.textContent.replace(/[^0-9.]/g, '')) : 0;// Get the subtotal directly from EJS
 
     try {
         const response = await fetch('/coupons/validate', {
@@ -611,7 +668,9 @@ async function applyCoupon(code) {
         const data = await response.json();
         
         if (data.success) {
-            appliedCoupon = data.coupon;
+            window.appliedCoupon = data.coupon;
+
+            console.log('Applied coupon:', window.appliedCoupon);
             updateOrderSummary();
             showCouponSuccess(`Coupon applied successfully! Discount: ${data.coupon.amountType === 'percentage' ? 
                 data.coupon.offerPrice + '%' : '$' + data.coupon.discountAmount}`);
@@ -627,6 +686,7 @@ async function applyCoupon(code) {
 }
 
 
+
 function showCouponError(message) {
     const errorDiv = document.getElementById('couponError');
     errorDiv.textContent = message;
@@ -639,6 +699,7 @@ function showCouponError(message) {
     }
 }
 
+
 // Show coupon success
 function showCouponSuccess(message) {
     const successDiv = document.getElementById('couponSuccess');
@@ -646,6 +707,7 @@ function showCouponSuccess(message) {
     successDiv.style.display = 'block';
     document.getElementById('couponError').style.display = 'none';
 }
+
 
 function updateOrderSummary() {
     const subtotal = parseFloat(<%= totals.subtotal %>);
@@ -661,14 +723,14 @@ function updateOrderSummary() {
 
     const shipping = parseFloat(<%= totals.shipping %>);
     const subtotalAfterDiscount = subtotal - discount;
-    const tax = (subtotalAfterDiscount * 0.1); // 10% tax on amount after discount
-    const total = subtotalAfterDiscount + shipping + tax;
+    // const tax = (subtotalAfterDiscount * 0.1); // 10% tax on amount after discount
+    const total = subtotalAfterDiscount + shipping 
 
     // Update display elements
     const discountRow = document.getElementById('discountRow');
     const discountElement = document.querySelector('[data-discount]');
     const subtotalElement = document.querySelector('[data-subtotal]');
-    const taxElement = document.querySelector('[data-tax]');
+    // const taxElement = document.querySelector('[data-tax]');
     const totalElement = document.querySelector('[data-total]');
 
     if (subtotalElement) subtotalElement.textContent = `$${subtotal.toFixed(2)}`;
@@ -680,16 +742,19 @@ function updateOrderSummary() {
         discountRow.style.display = 'none';
     }
     
-    if (taxElement) taxElement.textContent = `$${tax.toFixed(2)}`;
+    // if (taxElement) taxElement.textContent = `$${tax.toFixed(2)}`;
     if (totalElement) totalElement.textContent = `$${total.toFixed(2)}`;
 }
 
 
 // Initialize
+
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchAvailableCoupons();
     document.getElementById('applyCouponBtn').addEventListener('click', () => applyCoupon());
 });
+
 
 
 function removeCoupon() {
@@ -702,7 +767,7 @@ function removeCoupon() {
     }
 
     // Update the order summary without the coupon discount
-    updateOrderSummary();
+    updateOrderSummaryAfterRemoval();
 
     // Optionally reset the coupon input field
     const couponInput = document.getElementById('couponCode');
@@ -713,14 +778,37 @@ function removeCoupon() {
     // Re-fetch available coupons (optional)
     fetchAvailableCoupons();
 }
+
 function updateOrderSummaryAfterRemoval() {
-    const subtotal = parseFloat(document.querySelector('[data-subtotal]').textContent.replace('$', ''));
-    const shipping = parseFloat(document.querySelector('[data-shipping]').textContent.includes('Free') ? 0 : 
-        document.querySelector('[data-shipping]').textContent.replace('$', ''));
+    let subtotal = 0;
+    const subtotalElement = document.querySelector('[data-subtotal]');
+    if (subtotalElement) {
+        const subtotalText = subtotalElement.textContent.replace(/[^0-9.]/g, '');
+        subtotal = parseFloat(subtotalText) || 0;
+    }
+    
+    // Get shipping with improved error handling
+    let shipping = 0;
+    const shippingElement = document.querySelector('[data-shipping]');
+    if (shippingElement) {
+        const shippingText = shippingElement.textContent;
+        if (shippingText.includes('Free')) {
+            shipping = 0;
+        } else {
+            shipping = parseFloat(shippingText.replace(/[^0-9.]/g, '')) || 0;
+        }
+    }
     
     // Calculate tax on full subtotal (10%)
-    const tax = subtotal * 0.1;
-    const total = subtotal + shipping + tax;
+    // const tax = subtotal * 0.1;
+    const total = subtotal + shipping 
+
+
+    console.log({
+        subtotal: subtotal,
+        shipping: shipping,
+        total: total
+    });
 
     // Hide discount row
     const discountRow = document.getElementById('discountRow');
@@ -733,63 +821,20 @@ function updateOrderSummaryAfterRemoval() {
     }
 
     // Update tax and total
-    const taxElement = document.querySelector('[data-tax]');
+    // const taxElement = document.querySelector('[data-tax]');
     const totalElement = document.querySelector('[data-total]');
     
-    if (taxElement) {
-        taxElement.textContent = `$${tax.toFixed(2)}`;
-    }
+    // if (taxElement) {
+    //     taxElement.textContent = `$${tax.toFixed(2)}`;
+    // }
     
     if (totalElement) {
         totalElement.textContent = `$${total.toFixed(2)}`;
     }
 }
+
 
 // Update the original updateOrderSummary function to handle both application and removal
-function updateOrderSummary() {
-    const subtotal = parseFloat(document.querySelector('[data-subtotal]').textContent.replace('$', ''));
-    let discount = 0;
-    
-    if (appliedCoupon) {
-        if (appliedCoupon.amountType === 'percentage') {
-            discount = (subtotal * appliedCoupon.offerPrice) / 100;
-        } else {
-            discount = appliedCoupon.discountAmount;
-        }
-    }
-
-    const shipping = parseFloat(document.querySelector('[data-shipping]').textContent.includes('Free') ? 0 : 
-        document.querySelector('[data-shipping]').textContent.replace('$', ''));
-    const subtotalAfterDiscount = subtotal - discount;
-    const tax = subtotalAfterDiscount * 0.1; // 10% tax on amount after discount
-    const total = subtotalAfterDiscount + shipping + tax;
-
-    // Update display elements
-    const discountRow = document.getElementById('discountRow');
-    const discountElement = document.querySelector('[data-discount]');
-    const taxElement = document.querySelector('[data-tax]');
-    const totalElement = document.querySelector('[data-total]');
-
-    if (discount > 0) {
-        discountRow.style.display = 'flex';
-        if (discountElement) {
-            discountElement.textContent = `-$${discount.toFixed(2)}`;
-        }
-    } else {
-        discountRow.style.display = 'none';
-        if (discountElement) {
-            discountElement.textContent = '$0.00';
-        }
-    }
-    
-    if (taxElement) {
-        taxElement.textContent = `$${tax.toFixed(2)}`;
-    }
-    
-    if (totalElement) {
-        totalElement.textContent = `$${total.toFixed(2)}`;
-    }
-}
 
 
 document.addEventListener('DOMContentLoaded', async function() {

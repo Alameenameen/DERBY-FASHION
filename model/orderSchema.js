@@ -28,7 +28,10 @@ const orderSchema = new Schema({
         status:{
             type:String,
             default:'pending',
-            enum:['pending','processing','shipped','delivered','cancelled','Return Request','Returned']
+            enum:['pending','payment_failed','processing','shipped','delivered','cancelled','Return Request','Returned']
+        },
+        returnCompletedAt: {
+            type: Date
         }
     }],
     // totalPrice:{
@@ -52,6 +55,8 @@ const orderSchema = new Schema({
         zipCode: { type: String, required: true },
         phone: { type: String, required: true }
     },
+    originalPaidAmount: { type: Number, default: 0 },
+totalRefundedAmount: { type: Number, default: 0 },
     user:{
         type:Schema.Types.ObjectId,
         ref:'User',
@@ -63,7 +68,7 @@ const orderSchema = new Schema({
     status:{
         type:String,
        default:'pending',
-        enum:['pending','processing','shipped','delivered','cancelled','Return Request','Returned']
+        enum:['pending','payment_failed','processing','shipped','delivered','cancelled','Return Request','Returned']
     },
     isCancelledByUser: {
         type: Boolean,
@@ -101,12 +106,23 @@ const orderSchema = new Schema({
         trim: true,
         maxlength: 500 
     },
+    shippingCharge: {
+        type: Number,
+        default: 0
+    },
+    shippingChargeRefunded: {
+        type: Boolean,
+        default: false
+    },
     razorpayOrderId: {   
         type: String,
         required: function() { return this.PaymentMethod !== "COD" && this.PaymentMethod !== "Wallet"; }
     },
     razorpayPaymentId: {  
         type: String
+    },
+    returnCompletedAt: {
+        type: Date
     },
     refundStatus: {
         isRefunded: {

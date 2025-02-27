@@ -8,6 +8,8 @@ const brandController = require("../controller/admin/brandController")
 const orderController = require("../controller/admin/orderController")
 const couponController = require("../controller/admin/couponController")
 const salesController = require("../controller/admin/salesController")
+const dashController = require("../controller/admin/dashController")
+const logger = require('../middlewares/logger');
 
 
 const {adminAuth,noCache} = require("../middlewares/auth");
@@ -75,8 +77,9 @@ router.delete('/coupons/:couponId', couponController.deleteCoupon);
 // router.put("/orderList/:id/updateStatus", adminAuth, orderController.updateOrderStatus);
 
 router.get("/orderList", adminAuth, orderController.getAllOrders);
-router.put("/orderList/updateStatus/:id", adminAuth, orderController.updateOrderStatus);
+router.put("/orderList/updateStatus/:id", logger,adminAuth, orderController.updateOrderStatus);
 router.get('/orderList/details/:id', adminAuth,orderController.getOrderDetails);
+router.post('/orders/:id/update-item-status',logger, adminAuth,orderController.updateItemStatus);
 
 
 
@@ -87,6 +90,20 @@ router.get('/download-report/:type/:format', salesController.downloadReport);
 
 router.get("/blockProduct",adminAuth,productControllers.blockProduct);
 router.get("/unblockProduct",adminAuth,productControllers.unblockProduct);
+
+
+//dashboard
+
+// router.get('/sales-data/:filterType', adminAuth,dashController.salesData);
+// router.get('/top-products',adminAuth,dashController.topProducts);
+// router.get('/top-categories',adminAuth,dashController.topCategories);
+// router.get('/top-brands', adminAuth,dashController.topBrands);
+
+router.get("/dashboard/data", adminAuth, dashController.getDashboardData);
+// router.get("/ledger", isAuthenticated, isAdmin, dashController.getLedgerData);
+
+
+
 
 
 module.exports = router;

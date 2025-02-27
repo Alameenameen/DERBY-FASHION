@@ -41,17 +41,17 @@ const calculateTotals = (cartItems) => {
     });
 
     // Calculate other amounts
-    const tax = parseInt(subtotal * 0.10);  // 10% tax
-    const shippingFee = totalItems * 50; // 50 per item
+    // const tax = parseInt(subtotal * 0.10);  // 10% tax
+    const shippingFee = 50; // 50 per item
     const discount = subtotal * 0.10; // 10% discount
     
     // Calculate final total
-    const totalPrice = subtotal + tax + shippingFee;
+    const totalPrice = subtotal + shippingFee;
     const finalAmount = totalPrice - discount;
 
     return {
         subtotal: parseFloat(subtotal.toFixed(2)),
-        tax: parseFloat(tax.toFixed(2)),
+        // tax: parseFloat(tax.toFixed(2)),
         shipping: shippingFee,
         discount: parseFloat(discount.toFixed(2)),
         totalPrice: parseFloat(totalPrice.toFixed(2)),
@@ -125,359 +125,7 @@ const checkOutPage = async (req, res) => {
     }
 };
 
-// const placeOrder = async (req, res) => {
-//     try {
-//         if (!req.session.user || !req.session.user._id) {
-//             return res.status(401).json({ error: "Please login to continue" });
-//         }
 
-//         const userId = req.session.user._id;
-//         const { addressIndex, paymentMethod,couponId } = req.body;
-
-//         // Fetch address document
-//         const addressDoc = await Address.findOne({ userId });
-//         if (!addressDoc || !addressDoc.address[addressIndex]) {
-//             return res.status(400).json({ error: 'Invalid address selected' });
-//         }
-
-//         // Get the selected address from the array
-//         const selectedAddress = addressDoc.address[addressIndex];
-
-//         // Fetch cart with populated product details
-//         const cart = await Cart.findOne({ userId })
-//             .populate('items.productId', 'price salePrice');
-
-//         if (!cart || !cart.items.length) {
-//             return res.status(400).json({ error: 'Cart is empty' });
-//         }
-
-//         for (const item of cart.items) {
-//             const product = await Product.findById(item.productId._id);
-
-//             if (!product) continue;
-
-//             // Deduct total stock
-//             product.quantity -= item.quantity;
-
-//             // Deduct size-specific quantities
-//             const sizeDetail = product.sizes.find(s => s.size === item.size);
-//             if (sizeDetail) {
-//                 sizeDetail.quantity -= item.quantity;
-//             }
-
-//             // Update product status if out of stock
-//             if (product.quantity <= 0) {
-//                 product.status = 'out of stock';
-//             }
-
-//             await product.save();
-//         }
-
-//         // Calculate totals
-//         const totals = calculateTotals(cart.items);
-//         let finalAmount = totals.totalPrice;
-//         let discount = 0;
-//         let appliedCoupon = null;
-
-//         // Apply coupon if provided
-//         if (couponId) {
-//             const coupon = await Coupon.findOne({
-//                 _id: couponId,
-//                 isList: true,
-//                 startOn: { $lte: new Date() },
-//                 expireOn: { $gt: new Date() },
-//                 minimumPrice: { $lte: totals.totalPrice }
-//             });
-
-//             if (coupon) {
-//                 if (coupon.amountType === 'percentage') {
-//                     discount = (totals.totalPrice * coupon.offerPrice) / 100;
-//                 } else {
-//                     discount = coupon.offerPrice;
-//                 }
-//                 finalAmount = totals.totalPrice - discount;
-//                 appliedCoupon = coupon;
-//             }
-//         }
-
-
-//         if (paymentMethod === "Online") {
-//             // Create a Razorpay Order
-//             const razorpayOrder = await razorpayInstance.orders.create({
-//                 amount: finalAmount * 100, // Amount in paisa
-//                 currency: "INR",
-//                 receipt: `order_rcptid_${Date.now()}`,
-//                 payment_capture: 1
-//             });
-
-//             return res.json({
-//                 success: true,
-//                 orderId: razorpayOrder.id,
-//                 amount: finalAmount,
-//                 currency: "INR",
-//                 key: process.env.RAZORPAY_KEY_ID
-//             });
-//         } else {
-
-//         // Create the new order
-//         const newOrder = new Order({
-//             orderedItems: cart.items.map((item) => ({
-//                 product: item.productId._id,
-//                 quantity: item.quantity,
-//                 price: item.productId.salePrice || item.productId.price,
-//                 productDetails: {
-//                     productName: item.productId.productName,
-//                     productImage: item.productId.productImage
-//                 }
-//             })),
-//             size: cart.items[0].size,
-//             totalPrice: totals.totalPrice,
-//             discount: discount,
-//             finalAmount: finalAmount,
-//             address: {
-//                 name: selectedAddress.name,
-//                 street: selectedAddress.landMark, 
-//                 city: selectedAddress.city,
-//                 state: selectedAddress.state,
-//                 zipCode: selectedAddress.pincode, 
-//                 phone: selectedAddress.phone
-//             },
-//             user:userId,
-//             status: paymentMethod === "COD" ? "pending" : "processing",
-//             invoiceDate: new Date(),
-//             createdOn: new Date(),
-//             couponApplied: !!appliedCoupon,
-//             couponDetails: appliedCoupon ? {
-//                 couponId: appliedCoupon._id,
-//                 couponName: appliedCoupon.name,
-//                 discountAmount: discount
-//             } : null
-//         });       
-//         console.log('New order data:', {
-//             size: newOrder.size,
-//             items: newOrder.orderedItems,
-//             coupon: newOrder.couponDetails
-//         });
-        
-//         await newOrder.save();
-//         console.log("details",newOrder)
-//         // Clear cart after order placement
-//         await Cart.findOneAndDelete({ userId });
-
-//         res.json({
-//             success: true,
-//             message: 'Order placed successfully!',
-//             orderId: newOrder._id
-//         });
-//     }
-//     } catch (error) {
-//         console.error('Error placing order:', error);
-//         res.status(500).json({ error: 'Failed to place order' });
-//     }
-// }
-
-
-
-// const razorpayInstance = new Razorpay({
-//     key_id: process.env.RAZORPAY_KEY_ID,
-//     key_secret: process.env.RAZORPAY_KEY_SECRET
-// });
-
-// const placeOrder = async (req, res) => {
-//     try {
-//         if (!req.session.user || !req.session.user._id) {
-//             return res.status(401).json({ error: "Please login to continue" });
-//         }
-
-//         const userId = req.session.user._id;
-//         const { addressIndex, paymentMethod, couponId } = req.body;
-
-//         const addressDoc = await Address.findOne({ userId });
-//         if (!addressDoc || !addressDoc.address[addressIndex]) {
-//             return res.status(400).json({ error: 'Invalid address selected' });
-//         }
-
-//         const selectedAddress = addressDoc.address[addressIndex];
-//         const cart = await Cart.findOne({ userId }).populate('items.productId', 'price salePrice productName productImage');
-
-//         if (!cart || !cart.items.length) {
-//             return res.status(400).json({ error: 'Cart is empty' });
-//         }
-
-//         const totals = calculateTotals(cart.items);
-//         let finalAmount = totals.totalPrice;
-//         let discount = 0;
-//         let appliedCoupon = null;
-
-//         if (couponId) {
-//             const coupon = await Coupon.findOne({
-//                 _id: couponId,
-//                 isList: true,
-//                 startOn: { $lte: new Date() },
-//                 expireOn: { $gt: new Date() },
-//                 minimumPrice: { $lte: totals.totalPrice }
-//             });
-
-//             if (coupon) {
-//                 discount = coupon.amountType === 'percentage' ? (totals.totalPrice * coupon.offerPrice) / 100 : coupon.offerPrice;
-//                 finalAmount -= discount;
-//                 appliedCoupon = coupon;
-//             }
-//         }
-
-//         if (paymentMethod === "Online") {
-//             const razorpayOrder = await razorpayInstance.orders.create({
-//                 amount: finalAmount * 100,
-//                 currency: "INR",
-//                 receipt: `order_rcptid_${Date.now()}`,
-//                 payment_capture: 1
-//             });
-
-//             // Create a pending order in the database with razorpayOrderId
-//             const newOrder = new Order({
-//                 orderedItems: cart.items.map((item) => ({
-//                     product: item.productId._id,
-//                     quantity: item.quantity,
-//                     price: item.productId.salePrice || item.productId.price,
-//                     productDetails: {
-//                         productName: item.productId.productName,
-//                         productImage: item.productId.productImage
-//                     }
-//                 })),
-//                 size: cart.items[0].size,
-//                 totalPrice: totals.totalPrice,
-//                 discount: discount,
-//                 finalAmount: finalAmount,
-//                 address: {
-//                     name: selectedAddress.name,
-//                     street: selectedAddress.landMark, 
-//                     city: selectedAddress.city,
-//                     state: selectedAddress.state,
-//                     zipCode: selectedAddress.pincode, 
-//                     phone: selectedAddress.phone
-//                 },
-//                 user: userId,
-//                 status: paymentMethod === "COD" ? "pending" : "processing", // Order remains pending until payment verification
-//                 razorpayOrderId: paymentMethod === "COD" ? null : razorpayOrder.id ,
-//                 PaymentMethod: paymentMethod, // Store the Razorpay order ID
-//                 invoiceDate: new Date(),
-//                 createdOn: new Date(),
-//                 couponApplied: !!appliedCoupon,
-//                 couponDetails: appliedCoupon ? {
-//                     couponId: appliedCoupon._id,
-//                     couponName: appliedCoupon.name,
-//                     discountAmount: discount
-//                 } : null
-//             });
-
-//             await newOrder.save(); // Save order with pending status
-//             console.log("Pending Order Created:", newOrder);
-
-//             return res.json({
-//                 success: true,
-//                 orderId: razorpayOrder.id,
-//                 amount: finalAmount,
-//                 currency: "INR",
-//                 key: process.env.RAZORPAY_KEY_ID
-//             });
-//         } else {
-//             const newOrder = new Order({
-//                 orderedItems: cart.items.map((item) => ({
-//                     product: item.productId._id,
-//                     quantity: item.quantity,
-//                     price: item.productId.salePrice || item.productId.price,
-//                     productDetails: {
-//                         productName: item.productId.productName,
-//                         productImage: item.productId.productImage
-//                     }
-//                 })),
-//                 size: cart.items[0].size,
-//                 totalPrice: totals.totalPrice,
-//                 discount: discount,
-//                 finalAmount: finalAmount,
-//                 address: {
-//                     name: selectedAddress.name,
-//                     street: selectedAddress.landMark, 
-//                     city: selectedAddress.city,
-//                     state: selectedAddress.state,
-//                     zipCode: selectedAddress.pincode, 
-//                     phone: selectedAddress.phone
-//                 },
-//                 user: userId,
-//                 status: "pending",
-//                 invoiceDate: new Date(),
-//                 createdOn: new Date(),
-//                 couponApplied: !!appliedCoupon,
-//                 couponDetails: appliedCoupon ? {
-//                     couponId: appliedCoupon._id,
-//                     couponName: appliedCoupon.name,
-//                     discountAmount: discount
-//                 } : null
-//             });
-
-//             await newOrder.save();
-//             console.log("Order Created:", newOrder);
-
-//             await Cart.updateOne({ user: userId }, { $set: { items: [] } });
-
-//             return res.json({
-//                 success: true,
-//                 orderId: newOrder._id
-//             });
-//         }
-//     } catch (error) {
-//         console.error('Error placing order:', error);
-//         res.status(500).json({ error: 'Failed to place order' });
-//     }
-// };
-
-
-// const  verifyPayment =  async (req, res) => {
-//     try {
-//         console.log("Received Payment Verification Data:", req.body);
-
-//         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-//         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-//             console.error("Missing Razorpay Payment Details");
-//             return res.status(400).json({ success: false, error: "Invalid payment details" });
-//         }
-
-//         const secret = process.env.RAZORPAY_KEY_SECRET;
-//         const generated_signature = crypto
-//             .createHmac('sha256', secret)
-//             .update(razorpay_order_id + "|" + razorpay_payment_id)
-//             .digest('hex');
-
-//         if (generated_signature !== razorpay_signature) {
-//             console.error("Signature Mismatch");
-//             return res.status(400).json({ success: false, error: "Payment verification failed" });
-//         }
-
-//         console.log("Signature Verified");
-
-//         const order = await Order.findOneAndUpdate(
-//             { razorpayOrderId: razorpay_order_id },
-//             { status: "confirmed", razorpayPaymentId: razorpay_payment_id },
-//             { new: true }
-//         );
-
-//         if (!order) {
-//             console.error("Order Not Found for Razorpay Order ID:", razorpay_order_id);
-//             return res.status(404).json({ success: false, error: "Order not found" });
-//         }
-
-//         console.log("Order Updated After Payment:", order);
-
-//         // Clear cart after payment
-//         await Cart.findOneAndDelete({ user: order.user });
-
-//         res.json({ success: true, orderId: order._id });
-//     } catch (error) {
-//         console.error("Payment verification failed:", error);
-//         res.status(500).json({ error: "Internal server error" });
-//     }
-// }
 
 
 const razorpayInstance = new Razorpay({
@@ -555,6 +203,8 @@ const placeOrder = async (req, res) => {
         let discount = 0;
         let appliedCoupon = null;
 
+        console.log("////////////",couponId)
+
         if (couponId) {
             const coupon = await Coupon.findOne({
                 _id: couponId,
@@ -568,7 +218,10 @@ const placeOrder = async (req, res) => {
                 discount = coupon.amountType === 'percentage' 
                     ? (totals.totalPrice * coupon.offerPrice) / 100 
                     : coupon.offerPrice;
+                console.log('Original price:', totals.totalPrice);
+                console.log('Discount amount:', discount);
                 finalAmount -= discount;
+                console.log('Final amount after discount:', finalAmount);
                 appliedCoupon = coupon;
             }
         }
@@ -693,8 +346,18 @@ const verifyPayment = async (req, res) => {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+
+            const failedOrder = await Order.findOneAndUpdate(
+                { razorpayOrderId: razorpay_order_id },
+                { status: "payment_failed" },
+                { new: true }
+            );
+
             return res.status(400).json({ success: false, error: "Invalid payment details" });
         }
+
+
+        //payment faile
 
         // Verify signature
         const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -704,6 +367,13 @@ const verifyPayment = async (req, res) => {
             .digest('hex');
 
         if (generated_signature !== razorpay_signature) {
+
+            const failedOrder = await Order.findOneAndUpdate(
+                { razorpayOrderId: razorpay_order_id },
+                { status: "payment_failed" },
+                { new: true }
+            );
+
             return res.status(400).json({ success: false, error: "Payment verification failed" });
         }
 
@@ -727,6 +397,20 @@ const verifyPayment = async (req, res) => {
         res.json({ success: true, orderId: order._id });
     } catch (error) {
         console.error("Payment verification failed:", error);
+        if (req.body.razorpay_order_id) {
+            const failedOrder = await Order.findOneAndUpdate(
+                { razorpayOrderId: req.body.razorpay_order_id },
+                { status: "payment_failed" },
+                { new: true }
+            );
+            
+            return res.status(500).json({ 
+                error: "Internal server error", 
+                orderId: failedOrder ? failedOrder._id : null 
+            });
+        }
+
+
         res.status(500).json({ error: "Internal server error" });
     }
 };

@@ -17,7 +17,7 @@ const calculateCartTotal = (cart) => {
     }
 
     const subtotal = cart.items.reduce((total, item) => total + item.totalPrice, 0);
-    const shipping = subtotal > 0 ? 10 : 0; // Add shipping only if cart has items
+    const shipping = 50 // Add shipping only if cart has items
     const total = subtotal + shipping;
     
     return { subtotal, shipping, total };

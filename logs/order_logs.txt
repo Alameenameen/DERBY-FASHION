@@ -1,0 +1,9 @@
+[2025-02-26T10:31:04.343Z] PUT /admin/orderList/updateStatus/67beed4f404104b00b180924 - Body: {"status":"shipped"}
+[2025-02-26T10:31:27.276Z] POST /admin/orders/67beed4f404104b00b180924/update-item-status - Body: {"itemId":"67beed4f404104b00b180925","status":"delivered"}
+[2025-02-26T10:31:35.055Z] POST /admin/orders/67beed4f404104b00b180924/update-item-status - Body: {"itemId":"67beed4f404104b00b180926","status":"delivered"}
+[2025-02-26T10:31:50.097Z] POST /admin/orders/67beed4f404104b00b180924/update-item-status - Body: {"itemId":"67beed4f404104b00b180925","status":"delivered"}
+[2025-02-26T10:32:01.532Z] PUT /admin/orderList/updateStatus/67beed4f404104b00b180924 - Body: {"status":"Returned"}
+[2025-02-26T11:00:32.243Z] PUT /admin/orderList/updateStatus/67bef43d9b7cc2c22f1f198e - Body: {"status":"delivered"}
+[2025-02-26T11:01:17.161Z] POST /admin/orders/67bef43d9b7cc2c22f1f198e/update-item-status - Body: {"itemId":"67bef43d9b7cc2c22f1f1990","status":"Returned"}
+[2025-02-26T11:08:40.490Z] PUT /admin/orderList/updateStatus/67bef6239b7cc2c22f1f21be - Body: {"status":"delivered"}
+[2025-02-26T11:09:13.691Z] POST /admin/orders/67bef6239b7cc2c22f1f21be/update-item-status - Body: {"itemId":"67bef6239b7cc2c22f1f21c0","status":"Returned"}

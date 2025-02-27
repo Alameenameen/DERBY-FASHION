@@ -183,14 +183,24 @@ const SignUp = async(req,res)=>{
     try{
         const{email,name,phone,password,Cpassword}= req.body;
         console.log("name",req.body)
+
+
+        
         if(password !== Cpassword){
-            return res.render("signup",{message:"passwords do not match"});
+            return res.render("signup",{
+                message:"passwords do not match",
+                formData: {name, email, phone} 
+            });
         }
         const findUser = await User.findOne({email});
         console.log("finduser-",findUser);
         
         if(findUser){
-            return res.render("signup",{message:"user with this email already exists"})
+            return res.render("signup",{
+                message:"user with this email already exists",
+                errorField: "email", // Add this to identify which field has error
+                formData: {name, email, phone}
+            })
         }
 
         const otp = generateOtp();
@@ -218,10 +228,7 @@ const SignUp = async(req,res)=>{
 
         console.log("OTP sent",otp)
         res.render("verify-otp");
-        // return res.json({
-        //     success: true,
-        //     message: "OTP sent successfully"
-        // });
+       
 
 
      

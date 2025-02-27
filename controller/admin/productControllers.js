@@ -229,6 +229,14 @@ const editProducts = async (req, res) => {
             existingImages = []
         } = req.body;
 
+
+        let existingImagesArray = existingImages;
+        if (typeof existingImages === 'string') {
+            existingImagesArray = [existingImages];
+        } else if (!Array.isArray(existingImages)) {
+            existingImagesArray = [];
+        }
+
         // Validation checks
         if (!productName || !description || !regularPrice || !category || !brand) {
             return res.status(400).json({ error: "All required fields must be filled." });
@@ -282,6 +290,9 @@ const editProducts = async (req, res) => {
             img => !existingImages.includes(img)
         );
 
+
+        console.log('Existing images from form:', existingImagesArray);
+
         // Actually delete files from server
         imagesToDelete.forEach(img => {
             const imagePath = path.join('public', 'uploads', img);
@@ -290,7 +301,8 @@ const editProducts = async (req, res) => {
             }
         });
         // Process new images
-        let updatedImages = [...product.productImage]; // Start with existing images
+        let updatedImages = product.productImage.filter(img => existingImagesArray.includes(img));
+        console.log('Retained images:', updatedImages); // Start with existing images
 
         if (Array.isArray(croppedImages) && croppedImages.length > 0) {
             for (const [index, base64Image] of croppedImages.entries()) {

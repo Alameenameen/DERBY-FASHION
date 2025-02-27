@@ -207,18 +207,10 @@
                                 <input placeholder="₹" name="regularPrice" type="number" value="<%= product.regularPrice %>" class="form-control border" required>
                                 <div id="regularPrice-error" class="error-message"></div>
                             </div>
-                            <!-- <div class="col-lg-4 mb-4">
-                                <label class="form-label">Sale Price</label>
-                                <input placeholder="₹" name="salePrice" type="number" value="<%= product.salePrice %>" class="form-control border">
-                                <div id="salePrice-error" class="error-message"></div>
-                            </div> -->
+                            
                         </div>
 
-                        <!-- <div class="col-lg-4 mb-4">
-                            <label class="form-label">Color</label>
-                            <input name="color" type="text" value="<%= product.color %>" class="form-control border">
-                            <div id="color-error" class="error-message"></div>
-                        </div> -->
+                      
 
                         <div class="mb-4">
                             <label class="form-label">Category</label>
@@ -327,7 +319,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function handleImageSelect(event) {
     const file = event.target.files[0];
     if (file) {
-        const totalImages = currentImageCount + document.querySelectorAll('.current-image').length;
+
+        const existingImagesCount = document.querySelectorAll('.current-image').length;
+        const newImagesCount = document.querySelectorAll('[id^=image-section-]').length;
+        const totalImages = existingImagesCount + newImagesCount;
+
+        // const totalImages = currentImageCount + document.querySelectorAll('.current-image').length;
         if (totalImages >= MAX_IMAGES) {
             alert(`Maximum ${MAX_IMAGES} images allowed`);
             return;
