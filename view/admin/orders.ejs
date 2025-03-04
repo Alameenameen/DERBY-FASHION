@@ -1,143 +1,121 @@
 <%- include("../../view/partials/admin/header") %>
 
 <style>
-    :root {
-        --dark-blue: #1a237e;
-        --light-blue: #303f9f;
-        --white: #ffffff;
-        --black: #000000;
-        --gray: #f5f5f5;
-    }
+   /* Enhanced Order List Styles with Standard Colors */
 
-    .container {
-        padding: 20px;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    .success-message {
-        background-color: #4CAF50;
-        color: white;
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-        display: none;
-    }
-
-    .card {
-        background: var(--white);
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-header {
-        background: var(--dark-blue);
-        color: var(--white);
-        padding: 20px;
-        border-radius: 8px 8px 0 0;
-    }
-
-    .card-title {
-        margin: 0;
-        font-size: 24px;
-    }
-
-    .table-container {
-        overflow-x: auto;
-        padding: 20px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-    }
-
-    th {
-        background: var(--dark-blue);
-        color: var(--white);
-        padding: 12px;
-        text-align: left;
-    }
-
-    td {
-        padding: 12px;
-        border-bottom: 1px solid #ddd;
-    }
-
-    tr:hover {
-        background-color: var(--gray);
-    }
-
-    .status-select {
-        padding: 8px;
-        border: 1px solid var(--dark-blue);
-        border-radius: 4px;
-        margin-right: 10px;
-    }
-
-    .save-btn, .view-address-btn, .view-details-btn {
-        background: var(--dark-blue);
-        color: var(--white);
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-
-    .save-btn:hover, .view-address-btn:hover, .view-details-btn:hover {
-        background: var(--light-blue);
-    }
-
-    .save-btn:disabled {
-        background: #cccccc;
-        cursor: not-allowed;
-    }
-
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-    }
-
-    .modal-content {
-        background: var(--white);
-        margin: 15% auto;
-        padding: 20px;
-        border-radius: 8px;
-        width: 80%;
-        max-width: 500px;
-        position: relative;
-    }
-
-    .close-modal {
-        position: absolute;
-        right: 20px;
-        top: 10px;
-        font-size: 24px;
-        cursor: pointer;
-    }
-
-    .address-details {
-        margin-top: 20px;
-    }
+:root {
+    /* Primary colors */
+    --primary-50: #f0f7ff;
+    --primary-100: #e0efff;
+    --primary-200: #bae0ff;
+    --primary-300: #7cc5ff;
+    --primary-400: #36a3ff;
+    --primary-500: #0086ff;
+    --primary-600: #0068d6;
+    --primary-700: #0053ae;
+    --primary-800: #00448d;
+    --primary-900: #003974;
+    
+    /* Neutral colors */
+    --neutral-50: #f9fafb;
+    --neutral-100: #f3f4f6;
+    --neutral-200: #e5e7eb;
+    --neutral-300: #d1d5db;
+    --neutral-400: #9ca3af;
+    --neutral-500: #6b7280;
+    --neutral-600: #4b5563;
+    --neutral-700: #374151;
+    --neutral-800: #1f2937;
+    --neutral-900: #111827;
+    
+    /* Status colors */
+    --success-50: #ecfdf5;
+    --success-100: #d1fae5;
+    --success-500: #10b981;
+    --success-700: #047857;
+    
+    --warning-50: #fffbeb;
+    --warning-100: #fef3c7;
+    --warning-500: #f59e0b;
+    --warning-700: #b45309;
+    
+    --danger-50: #fef2f2;
+    --danger-100: #fee2e2;
+    --danger-500: #ef4444;
+    --danger-700: #b91c1c;
+    
+    --info-50: #eff6ff;
+    --info-100: #dbeafe;
+    --info-500: #3b82f6;
+    --info-700: #1d4ed8;
+    
+    --purple-50: #f5f3ff;
+    --purple-100: #ede9fe;
+    --purple-500: #8b5cf6;
+    --purple-700: #6d28d9;
+}
 
 
-    .filter-section {
-    padding: 20px;
-    border-bottom: 1px solid #eee;
+body {
+    color: var(--neutral-700);
+    background-color: var(--neutral-100);
+    font-family: 'Poppins', 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    font-weight: 400;
+}
+
+.container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.card-header {
+    border-bottom: 1px solid var(--neutral-200);
+    background-color: white;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--primary-800);
+    padding: 1.5rem 2rem;
+    font-weight: 600;
+}
+
+/* Success message */
+.success-message {
+    background-color: var(--success-500);
+    color: white;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    display: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Filter section */
+.filter-section {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--neutral-200);
+    background-color: var(--primary-50);
 }
 
 .filter-form {
     display: flex;
-    gap: 20px;
+    gap: 1.5rem;
     align-items: flex-end;
     flex-wrap: wrap;
 }
@@ -145,47 +123,272 @@
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 0.5rem;
 }
 
 .filter-group label {
     font-weight: 500;
-    color: #666;
+    color: var(--neutral-700);
+    font-size: 0.9rem;
 }
 
 .filter-group input,
 .filter-group select {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--neutral-300);
+    border-radius: 5px;
     min-width: 200px;
+    font-size: 0.95rem;
+    color: var(--neutral-800);
+    background-color: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--primary-400);
+    box-shadow: 0 0 0 3px var(--primary-100);
 }
 
 .filter-buttons {
     display: flex;
-    gap: 10px;
+    gap: 0.75rem;
+    margin-left: auto;
 }
 
+/* Buttons */
 .btn {
-    padding: 8px 16px;
+    padding: 0.625rem 1.25rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
     cursor: pointer;
     font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
 }
 
 .btn-primary {
-    background: #0d6efd;
+    background: var(--primary-600);
     color: white;
 }
 
+.btn-primary:hover {
+    background: var(--primary-700);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .btn-secondary {
-    background: #6c757d;
+    background: var(--neutral-500);
     color: white;
     text-decoration: none;
 }
+
+.btn-secondary:hover {
+    background: var(--neutral-600);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+    padding: 1.5rem 2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+}
+
+thead {
+    background-color: var(--primary-50);
+}
+
+th {
+    background: var(--primary-800);
+    color: white;
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+}
+
+th:first-child {
+    border-top-left-radius: 6px;
+}
+
+th:last-child {
+    border-top-right-radius: 6px;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--neutral-200);
+    vertical-align: middle;
+}
+
+tr:hover {
+    background-color: var(--neutral-50);
+}
+
+/* Status Selection and Buttons */
+.status-select {
+    padding: 0.5rem;
+    border: 1px solid var(--neutral-300);
+    border-radius: 4px;
+    margin-right: 0.625rem;
+    color: var(--neutral-800);
+    background-color: white;
+    min-width: 140px;
+    font-size: 0.9rem;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: var(--primary-400);
+    box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.save-btn, .view-address-btn, .view-details-btn {
+    background: var(--primary-600);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.save-btn:hover, 
+.view-address-btn:hover, 
+.view-details-btn:hover {
+    background: var(--primary-700);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.save-btn:disabled {
+    background: var(--neutral-300);
+    cursor: not-allowed;
+}
+
+.view-address-btn {
+    background: var(--neutral-600);
+}
+
+.view-address-btn:hover {
+    background: var(--neutral-700);
+}
+
+.view-details-btn {
+    background: var(--info-600);
+    background: var(--primary-600);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.close-modal {
+    position: absolute;
+    right: 1.25rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--neutral-500);
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: var(--neutral-800);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: var(--primary-700);
+    font-size: 1.4rem;
+    border-bottom: 2px solid var(--primary-100);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.address-details p {
+    margin: 0.625rem 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.address-label {
+    font-weight: 600;
+    color: var(--neutral-700);
+    width: 100px;
+    display: inline-block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .filter-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .filter-buttons {
+        margin-left: 0;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        padding: 0.625rem 1rem;
+    }
+
+    th, td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .card-title {
+        font-size: 1.5rem;
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 1.5rem;
+    }
+}
 </style>
-<div class="container">
+<!-- <div class="container">
     <div class="success-message" id="successMessage">
         Status updated successfully!
     </div>
@@ -260,7 +463,7 @@
                             <td><%= order.status %></td>
                             <td>
                                 <select id="status-<%= order._id %>" class="status-select">
-                                    <% if (order.status === 'delivered' || order.status === 'Return Request' || order.status === 'Returned') { %>
+                                    <% if (order.status === 'delivered' || order.status === 'Return Request' ) { %>
                                         <option value="Return Request" <%= order.status === 'Return Request' ? 'selected' : '' %>>Return Request</option>
                                         <option value="Returned" <%= order.status === 'Returned' ? 'selected' : '' %>>Returned</option>
                                     <% } else if (order.status === 'shipped') { %>
@@ -297,6 +500,119 @@
             </table>
         </div>
     </div>
+</div> -->
+
+<div class="container">
+    <div class="success-message" id="successMessage">
+        Status updated successfully!
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <div class="filter-section">
+                <form action="/admin/orderList" method="GET" class="filter-form">
+                    <div class="filter-group">
+                        <label for="startDate">From Date:</label>
+                        <input type="date" id="startDate" name="startDate" class="form-control" 
+                            value="<%= locals.filters?.startDate || '' %>">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="endDate">To Date:</label>
+                        <input type="date" id="endDate" name="endDate" class="form-control"
+                            value="<%= locals.filters?.endDate || '' %>">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="status">Status:</label>
+                        <select id="status" name="status" class="form-control">
+                            <option value="">All Status</option>
+                            <option value="pending" <%= locals.filters?.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                            <option value="processing" <%= locals.filters?.status === 'processing' ? 'selected' : '' %>>Processing</option>
+                            <option value="shipped" <%= locals.filters?.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                            <option value="delivered" <%= locals.filters?.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                            <option value="cancelled" <%= locals.filters?.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                            <option value="Return Request" <%= locals.filters?.status === 'Return Request' ? 'selected' : '' %>>Return Request</option>
+                            <option value="Returned" <%= locals.filters?.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+                        </select>
+                    </div>
+            
+                    <div class="filter-buttons">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="/admin/orderList" class="btn btn-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+            <h1 class="card-title">Order lists</h1>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer Details</th>
+                        <th>Shipping Address</th>
+                        <th>Current Status</th>
+                        <th>Update Status</th>
+                        <th>Order Date</th>
+                        <th>Order Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% orders.forEach(order => { %>
+                        <tr>
+                            <td><%= order.orderId || order._id %></td>
+                            <td>
+                                <strong><%= order.user ? order.user.name : 'Guest' %></strong><br>
+                                <%= order.user ? order.user.email : 'N/A' %>
+                            </td>
+                            <td>
+                                <button class="view-address-btn" 
+                                    onclick="showAddressDetails('<%= JSON.stringify(order.address).replace(/'/g, '\\\\') %>')">
+                                    View Address
+                                </button>
+                            </td>
+                            <td class="current-status" data-order-id="<%= order._id %>">
+                                <%= order.status %>
+                            </td>
+                            <td>
+                                <select class="status-select" 
+                                        data-order-id="<%= order._id %>"
+                                        <%= order.status === 'cancelled' || order.status === 'Returned' ? 'disabled' : '' %>>
+                                    <% if (order.status === 'delivered' || order.status === 'Return Request') { %>
+                                        <option value="Return Request" <%= order.status === 'Return Request' ? 'selected' : '' %>>Return Request</option>
+                                        <option value="Returned" <%= order.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+                                    <% } else if (order.status === 'shipped') { %>
+                                        <option value="shipped" <%= order.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                                        <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                                        <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                                        <option value="Return Request" <%= order.status === 'Return Request' ? 'selected' : '' %>>Return Request</option>
+                                        <option value="Returned" <%= order.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+                                    <% } else if (order.status === 'Returned') { %>
+                                        <option value="Returned" <%= order.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+                                    <% } else { %>
+                                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                                        <option value="processing" <%= order.status === 'processing' ? 'selected' : '' %>>Processing</option>
+                                        <option value="shipped" <%= order.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                                        <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                                        <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                                    <% } %>
+                                </select>
+                            </td>
+                            <td><%= new Date(order.createdOn).toLocaleDateString() %></td>
+                            <td>
+                                <button class="view-details-btn" 
+                                        onclick="window.location.href='/admin/orderList/details/<%= order._id %>'">
+                                    View Details
+                                </button>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Address Modal -->
@@ -312,7 +628,7 @@
 
 
 
-<script>
+<!-- <script>
 function showAddressDetails(addressData) {
     try {
         const address = JSON.parse(addressData);
@@ -399,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selects = document.querySelectorAll('.status-select');
     selects.forEach(select => {
         const currentStatus = select.value;
-        if (currentStatus === 'delivered' || currentStatus === 'Return Request' || currentStatus === 'Returned') {
+        if (currentStatus === 'delivered' || currentStatus === 'Return Request') {
             select.innerHTML = `
                 <option value="Return Request" ${currentStatus === 'Return Request' ? 'selected' : ''}>Return Request</option>
                 <option value="Returned" ${currentStatus === 'Returned' ? 'selected' : ''}>Returned</option>
@@ -420,6 +736,151 @@ window.onclick = function(event) {
         modal.style.display = 'none';
     }
 }
+</script> -->
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+function showAddressDetails(addressData) {
+    try {
+        const address = JSON.parse(addressData);
+        const modalContent = document.getElementById('modalAddressContent');
+        modalContent.innerHTML = `
+            <p><span class="address-label">Name:</span> ${address.name || 'N/A'}</p>
+            <p><span class="address-label">Street:</span> ${address.street || 'N/A'}</p>
+            <p><span class="address-label">City:</span> ${address.city || 'N/A'}</p>
+            <p><span class="address-label">State:</span> ${address.state || 'N/A'}</p>
+            <p><span class="address-label">ZIP Code:</span> ${address.zipCode || 'N/A'}</p>
+            <p><span class="address-label">Phone:</span> ${address.phone || 'N/A'}</p>
+        `;
+        const modal = document.getElementById('addressModal');
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error('Error displaying address:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to display address details',
+            confirmButtonColor: '#d33'
+        });
+    }
+}
+
+function closeAddressModal() {
+    const modal = document.getElementById('addressModal');
+    modal.style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('addressModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const statusSelects = document.querySelectorAll('.status-select');
+
+    statusSelects.forEach(select => {
+        select.addEventListener('change', async function(e) {
+            const orderId = this.getAttribute('data-order-id');
+            const newStatus = this.value;
+            const previousStatus = this.closest('tr').querySelector('.current-status').textContent.trim();
+
+            // If new status is same as current, do nothing
+            if (newStatus === previousStatus) {
+                return;
+            }
+
+            // Show loading state
+            this.disabled = true;
+
+            try {
+                const response = await fetch(`/admin/orderList/updateStatus/${orderId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update current status display
+                    const statusCell = this.closest('tr').querySelector('.current-status');
+                    statusCell.textContent = newStatus;
+
+                    // Show success message with SweetAlert
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Order status updated successfully!',
+                        showConfirmButton: false,
+                        timer: 1500,
+                        position: 'top-end',
+                        toast: true
+                    });
+
+                    // Update select options based on new status
+                    let newOptions = '';
+                    if (newStatus === 'delivered' || newStatus === 'Return Request') {
+                        newOptions = `
+                            <option value="Return Request" ${newStatus === 'Return Request' ? 'selected' : ''}>Return Request</option>
+                            <option value="Returned" ${newStatus === 'Returned' ? 'selected' : ''}>Returned</option>
+                        `;
+                    } else if (newStatus === 'shipped') {
+                        newOptions = `
+                            <option value="delivered" ${newStatus === 'delivered' ? 'selected' : ''}>Delivered</option>
+                            <option value="cancelled" ${newStatus === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            <option value="Return Request" ${newStatus === 'Return Request' ? 'selected' : ''}>Return Request</option>
+                            <option value="Returned" ${newStatus === 'Returned' ? 'selected' : ''}>Returned</option>
+                        `;
+                    } else if (newStatus === 'Returned' || newStatus === 'cancelled') {
+                        newOptions = `
+                            <option value="${newStatus}" selected>${newStatus}</option>
+                        `;
+                        this.disabled = true; // Disable for terminal states
+                    } else {
+                        newOptions = `
+                            <option value="pending" ${newStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="processing" ${newStatus === 'processing' ? 'selected' : ''}>Processing</option>
+                            <option value="shipped" ${newStatus === 'shipped' ? 'selected' : ''}>Shipped</option>
+                            <option value="delivered" ${newStatus === 'delivered' ? 'selected' : ''}>Delivered</option>
+                            <option value="cancelled" ${newStatus === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                        `;
+                    }
+
+                    // Update the select options immediately
+                    this.innerHTML = newOptions;
+
+                } else {
+                    throw new Error(data.message || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                
+                // Show error message with SweetAlert
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Failed',
+                    text: `Failed to update status: ${error.message}`,
+                    confirmButtonColor: '#d33'
+                });
+
+                // Revert to previous status on failure
+                this.value = previousStatus;
+            } finally {
+                // Re-enable select only if not in terminal state
+                if (newStatus !== 'cancelled' && newStatus !== 'Returned') {
+                    this.disabled = false;
+                }
+            }
+        });
+    });
+});
 </script>
+
 
 <%- include("../../view/partials/admin/footer") %>

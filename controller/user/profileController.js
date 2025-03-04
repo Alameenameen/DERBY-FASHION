@@ -173,12 +173,26 @@ const NewPassword = async(req,res)=>{
 const userProfile = async(req,res)=>{
     try {
 
-
-        const messages = req.session.messages || {};
-        req.session.messages = {};
+        
+       
 
         const userId = req.session.user
         const userData = await User.findById(userId)
+
+        if (!userData.referalcode) {
+            // Generate a new referral code
+            const referalcode = generateReferralCode();
+            
+            // Update the user with the new referral code
+            await User.findByIdAndUpdate(userId, { referalcode });
+            
+            // Update userData to include the new code
+            userData.referalcode = referalcode;
+        }
+
+        const referralLink = `${req.protocol}://${req.get('host')}/signup?ref=${userData.referalcode}`;
+        const messages = req.session.messages || {};
+        req.session.messages = {};
         const addressData = await Address.findOne({userId:userId})
         const orders = await Order.find({user:userId})
         .populate('orderedItems.product')
@@ -203,7 +217,7 @@ const userProfile = async(req,res)=>{
         // const orderData = await Order.find({userId:userId}).sort({createdAt:-1}).exec()
         // console.log("orders : ",orderData);
         
-        res.render("profile",{user:userData,userAddress:addressData,orders:orders,getStatusClass, messages}) //  when add the address and orderadata that time you pass useradressand order to profile
+        res.render("profile",{user:userData,userAddress:addressData,orders:orders,getStatusClass, messages,referralLink: referralLink}) //  when add the address and orderadata that time you pass useradressand order to profile
     } catch (error) {
         console.error("Error in fetching user profile",error);
         req.session.messages = { error: 'Error loading profile' };
@@ -212,42 +226,15 @@ const userProfile = async(req,res)=>{
 }
 
 
-// const editProfile = async (req, res) => {
-//     try {
-//         const userId = req.session.user;
-//         const { name, phone } = req.body;
 
-//         // Validate phone number
-//         const phoneRegex = /^\d{10}$/;
-//         if (!phoneRegex.test(phone)) {
-//             // Using req.session.messages instead of flash
-//             req.session.messages = { error: 'Please enter a valid 10-digit phone number' };
-//             return res.redirect('/userProfile');
-//         }
-
-//         // Update user data
-//         const updatedUser = await User.findByIdAndUpdate(
-//             userId,
-//             {
-//                 name: name,
-//                 phone: phone
-//             },
-//             { new: true }
-//         );
-
-//         if (!updatedUser) {
-//             req.session.messages = { error: 'User not found' };
-//             return res.redirect('/userProfile');
-//         }
-
-//         req.session.messages = { success: 'Profile updated successfully' };
-//         res.redirect('/userProfile');
-//     } catch (error) {
-//         console.error("Error updating profile:", error);
-//         req.session.messages = { error: 'Error updating profile' };
-//         res.redirect('/userProfile');
-//     }
-// };
+function generateReferralCode() {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar-looking characters
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+}
 
 
 const editProfile = async (req, res) => {

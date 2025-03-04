@@ -25,6 +25,9 @@ router.get("/signup",userController.loadSignup);
 router.post("/signup",userController.SignUp);
 router.post("/verify-otp",userController.verifyOtp);
 router.post("/resend-otp",userController.resendOtp);
+router.get("/referral-info", userController.getUserReferralInfo);
+// router.get("/referral-link", userController.generateReferralLink);
+
 
 router.get("/auth/google",passport.authenticate('google',{scope:['profile','email']}));
 router.get("/auth/google/callback",passport.authenticate('google',{failureRedirect:"/signup"}),(req,res)=>{
@@ -88,17 +91,13 @@ router.post('/handle-payment-cancel', userAuth,orderController.handlePaymentCanc
 router.post('/retry-payment', userAuth,orderController.retryPayment);
 
 router.post('/cancel-order-item/:orderId/:itemId',userAuth, orderController.cancelOrderItem);
-// router.post('/return-order-item/:orderId/:itemId',userAuth,  orderController.returnOrderItem);
 router.get('/order/invoice/:orderId', userAuth, orderController.downloadInvoice);
-// router.post('/orders/:orderId/return-item/:itemId',orderController.returnOrderItem);
-// router.post('/orders/:orderId/approve-return/:itemId?', orderController.approveReturn);
-//coupons
+
 
 // User routes for order returns
 router.post('/return-order-item/:orderId/:itemId', userAuth, orderController.returnOrderItem);
 
-// Admin routes for managing returns
-// router.post('/admin/approve-return/:orderId/:itemId', adminAuth, orderController.approveReturnItem);
+
 
 router.post('/coupons/available', couponController.getAvailableCoupons);
 router.post('/coupons/validate', couponController.validateCoupon);

@@ -10,11 +10,12 @@ const db = require("./config/db");
 const userRouter = require("./routes/userRouter");
 const adminRouter = require("./routes/adminRouter")
 const flash = require('connect-flash');
-// const logger = require('../middlewares/logger');
 const {cartCountMiddleware} = require('./middlewares/auth');
 
 
-// const bodyParser = require("body-parser");
+
+
+
 
 db();
 

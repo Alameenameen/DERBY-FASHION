@@ -72,35 +72,27 @@ router.delete('/coupons/:couponId', couponController.deleteCoupon);
 
 //order managment
 
-// router.get("/orderList",adminAuth,orderController.getAllOrders)
-// router.get("/orderList/:id",adminAuth,orderController.getOrderDetails)
-// router.put("/orderList/:id/updateStatus", adminAuth, orderController.updateOrderStatus);
+
 
 router.get("/orderList", adminAuth, orderController.getAllOrders);
 router.put("/orderList/updateStatus/:id", logger,adminAuth, orderController.updateOrderStatus);
-router.get('/orderList/details/:id', adminAuth,orderController.getOrderDetails);
-router.post('/orders/:id/update-item-status',logger, adminAuth,orderController.updateItemStatus);
-
+router.get('/orderList/details/:id', adminAuth, orderController.getOrderDetails);
+router.put('/orderList/updateItemStatus/:id', logger, adminAuth, orderController.updateItemStatus);
 
 
 router.get('/sales-report', salesController.getSalesReport);
 router.post('/generate-report', salesController.generateReport);
 router.get('/download-report/:type/:format', salesController.downloadReport);
-// router.post('/custom-report', salesController.generateCustomReport);
+
 
 router.get("/blockProduct",adminAuth,productControllers.blockProduct);
 router.get("/unblockProduct",adminAuth,productControllers.unblockProduct);
 
 
-//dashboard
 
-// router.get('/sales-data/:filterType', adminAuth,dashController.salesData);
-// router.get('/top-products',adminAuth,dashController.topProducts);
-// router.get('/top-categories',adminAuth,dashController.topCategories);
-// router.get('/top-brands', adminAuth,dashController.topBrands);
 
 router.get("/dashboard/data", adminAuth, dashController.getDashboardData);
-// router.get("/ledger", isAuthenticated, isAdmin, dashController.getLedgerData);
+
 
 
 

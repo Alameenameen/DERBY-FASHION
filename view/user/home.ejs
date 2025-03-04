@@ -83,65 +83,7 @@
     <!-- Featured End -->
 
 
-    <!-- Categories Start -->
-    <!-- <div class="container-fluid pt-5">
-        <h2 class="section-title position-relative text-uppercase mx-xl-5 mb-4"><span class="bg-secondary pr-3">Categories</span></h2>
-        <div class="row px-xl-5 pb-3">
-            <div class="col-lg-3 col-md-4 col-sm-6 pb-1">
-                <a class="text-decoration-none" href="">
-                    <div class="cat-item d-flex align-items-center mb-4">
-                        <div class="overflow-hidden" style="width: 100px; height: 100px;">
-                            <img class="img-fluid" src="img/shirt_category.avif" alt="">
-                        </div>
-                        <div class="flex-fill pl-3">
-                            <h6>Men Shirts</h6>
-                         
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6 pb-1">
-                <a class="text-decoration-none" href="">
-                    <div class="cat-item img-zoom d-flex align-items-center mb-4">
-                        <div class="overflow-hidden" style="width: 100px; height: 100px;">
-                            <img class="img-fluid" src="img/shoes_category.jpg" alt="">
-                        </div>
-                        <div class="flex-fill pl-3">
-                            <h6>Shoes</h6>
-                            
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6 pb-1">
-                <a class="text-decoration-none" href="">
-                    <div class="cat-item img-zoom d-flex align-items-center mb-4">
-                        <div class="overflow-hidden" style="width: 100px; height: 100px;">
-                            <img class="img-fluid" src="img/product-6.jpg" alt="">
-                        </div>
-                        <div class="flex-fill pl-3">
-                            <h6>Watches</h6>
-                            
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-lg-3 col-md-4 col-sm-6 pb-1">
-                <a class="text-decoration-none" href="">
-                    <div class="cat-item img-zoom d-flex align-items-center mb-4">
-                        <div class="overflow-hidden" style="width: 100px; height: 100px;">
-                            <img class="img-fluid" src="img/crocs_category.jpeg" alt="">
-                        </div>
-                        <div class="flex-fill pl-3">
-                            <h6>Slides & Crocs</h6>
-                            <small class="text-body">100 Products</small>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            
-        </div>
-    </div> -->
+    
     <!-- Categories End -->
     <div class="row">
     <% categories.forEach(category => { %>
@@ -200,8 +142,7 @@
                             <a class="btn btn-outline-dark btn-square" onclick="addToWishlist('<%=products[i]._id%>')">
                                 <i class="far fa-heart"></i>
                             </a>
-                            <!-- <a class="btn btn-outline-dark btn-square" href=""><i class="fa fa-sync-alt"></i></a>
-                            <a class="btn btn-outline-dark btn-square" href=""><i class="fa fa-search"></i></a> -->
+                           
                         </div>
                         <% if (hasOffer) { %>
                             <div class="offer-badge position-absolute bg-danger text-white px-2 py-1" style="top: 10px; left: 10px;">

@@ -92,36 +92,54 @@ const razorpayInstance = new Razorpay({
 
 const orderSuccessPage = async (req, res) => {
     try {
+        if (!req.session.user || !req.session.user._id) {
+            return res.redirect('/login');
+        }
+
         const orderId = req.params.orderId;
+        console.log("orderId:", orderId);
+
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.render('page-404', {
+                user: req.session.user,
+                error: 'Invalid order ID',
+                page: 'page-404'
+            });
+        }
+
+        // Fetch order with populated product, user, and ensure all necessary fields
         const order = await Order.findById(orderId)
-            .populate({
-                path: 'orderedItems.product',
-                select: 'productName productImage price'
-            })
-            .populate('user');
+            .populate('orderedItems.product', 'productName productImage')
+            .populate('user', 'name email phone');
 
         if (!order) {
             return res.render('page-404', {
                 user: req.session.user,
-                error: 'Order not found'
+                error: 'Order not found',
+                page: 'page-404'
             });
         }
 
-        // Ensure all items have proper status and price
-        order.orderedItems.forEach(item => {
-            // Sync item status with order status if not cancelled or returned
-            if (item.status === 'pending' || item.status === 'processing') {
-                item.status = order.status;
-            }
-            
-            // Ensure price is set correctly
-            if (!item.price || item.price <= 0) {
-                item.price = item.product.price;
-            }
-        });
+        // Determine display status for UI
+        let displayStatus = order.status;
+        if (order.status === 'payment_failed') {
+            displayStatus = 'Pending';
+        } else if (order.PaymentMethod === 'Online' && order.paymentStatus === 'Paid') {
+            displayStatus = 'Processing';
+        }
+
+        // Create a modified order object with all necessary fields
+        const modifiedOrder = {
+            ...order.toObject(),
+            displayStatus: displayStatus,
+            // Ensure deliveredAt is included if it exists
+            deliveredDate: order.deliveredDate || null,
+            // Ensure paymentStatus is included
+            paymentStatus: order.paymentStatus || (order.status === 'payment_failed' ? 'Failed' : 'Paid')
+        };
 
         res.render('order-details', {
-            order: order,
+            order: modifiedOrder,
             user: req.session.user
         });
 
@@ -129,10 +147,12 @@ const orderSuccessPage = async (req, res) => {
         console.error('Error loading order details:', error);
         res.render('page-404', {
             user: req.session.user,
-            error: 'Error loading order details'
+            error: 'Error loading order details',
+            page: 'page-404'
         });
     }
 };
+
 
 const handlePaymentCancel = async (req, res) => {
     try {
@@ -220,266 +240,6 @@ const retryPayment = async (req, res) => {
 
 
 
-// const cancelOrder = async (req, res) => {
-//     try {
-//         const orderId = req.params.orderId;
-//         const userId = req.session.user._id;
-        
-//         console.log('Starting cancel order process for order:', orderId);
-        
-//         const order = await Order.findById(orderId)
-//             .populate({
-//                 path: 'orderedItems.product',
-//                 select: '_id productName quantity sizes status'
-//             });
-
-//         if (!order) {
-//             console.log('Order not found:', orderId);
-//             return res.status(404).json({
-//                 success: false,
-//                 error: 'Order not found'
-//             });
-//         }
-
-//         // Check if all items are already cancelled
-//         const allItemsCancelled = order.orderedItems.every(item => 
-//             item.status === 'cancelled' || item.status === 'Returned');
-
-//         if (allItemsCancelled) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "All items are already cancelled or returned"
-//             });
-//         }
-
-//         // Basic validation
-//         if (order.status !== 'pending' && order.status !== 'processing') {
-//             console.log('Invalid order status for cancellation:', order.status);
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'Only pending and processing orders can be cancelled'
-//             });
-//         }
-
-//         if (order.isCancelledByUser) {
-//             console.log('Order already cancelled:', orderId);
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Order is already cancelled."
-//             });
-//         }
-
-//         const couponDiscount = order.couponApplied && order.couponDetails ? 
-//         parseFloat(order.couponDetails.discountAmount || 0) : 0;
-
-//     // Calculate refund amount for active items only
-//     let refundAmount = 0;
-    
-//     // Sum up the price of items being cancelled
-//     for (const item of order.orderedItems) {
-//         if (item.status !== 'cancelled' && item.status !== 'Returned') {
-//             refundAmount += item.quantity * item.price;
-//             item.status = 'cancelled'; // Update item status
-//         }
-//     }
-
-//         // Calculate refund amount for active items only
-//         // let refundAmount = 0;
-//         let originalCouponDiscount = 0;
-//         let couponWillBecomeInvalid = false;
-
-//         // Store original coupon details if applicable
-//         if (order.couponApplied && order.couponDetails) {
-//             originalCouponDiscount = parseFloat(order.couponDetails.discountAmount || 0);
-//         }
-
-//         // Calculate remaining total after cancellation
-//         const remainingTotal = order.orderedItems.reduce((sum, item) => {
-//             if (item.status !== 'cancelled' && item.status !== 'Returned') {
-//                 return sum + (item.quantity * item.price);
-//             }
-//             return sum;
-//         }, 0);
-
-//         // Check if coupon becomes invalid
-//         if (order.couponApplied && order.couponDetails && remainingTotal < parseFloat(order.couponDetails.minimumPurchase || 0)) {
-//             couponWillBecomeInvalid = true;
-//             refundAmount += originalCouponDiscount; // Add coupon discount to refund if it becomes invalid
-//         }
-
-//         // Sum up the price of items being cancelled
-//         for (const item of order.orderedItems) {
-//             if (item.status !== 'cancelled' && item.status !== 'Returned') {
-//                 refundAmount += item.quantity * item.price;
-//                 item.status = 'cancelled'; // Update item status
-//             }
-//         }
-
-//         // Process quantity restoration
-//         for (const orderItem of order.orderedItems) {
-//             if (orderItem.status === 'cancelled') { // Only restore for newly cancelled items
-//                 try {
-//                     console.log('===== STARTING QUANTITY RESTORATION =====');
-                    
-//                     const quantityToRestore = parseInt(orderItem.quantity, 10);
-//                     if (isNaN(quantityToRestore)) {
-//                         console.error('Invalid quantity format:', orderItem.quantity);
-//                         continue;
-//                     }
-                    
-//                     const productId = orderItem.product._id || orderItem.product;
-//                     const product = await Product.findById(productId);
-                    
-//                     if (!product) {
-//                         console.error(`Product not found for ID: ${productId}`);
-//                         continue;
-//                     }
-
-//                     console.log('Order Item Details:', {
-//                         productId: productId,
-//                         quantity: quantityToRestore,
-//                         size: orderItem.size,
-//                         productSizes: product.sizes
-//                     });
-
-//                     const updatedQuantity = product.quantity + quantityToRestore;
-//                     const sizeToRestore = orderItem.size;
-//                     let updatedSizes = [...product.sizes];
-
-//                     if (sizeToRestore) {
-//                         const sizeIndex = updatedSizes.findIndex(s => s.size === sizeToRestore);
-//                         if (sizeIndex !== -1) {
-//                             console.log(`Updating size ${sizeToRestore} quantity:`, {
-//                                 before: updatedSizes[sizeIndex].quantity,
-//                                 adding: quantityToRestore,
-//                                 after: updatedSizes[sizeIndex].quantity + quantityToRestore
-//                             });
-                            
-//                             updatedSizes[sizeIndex].quantity += quantityToRestore;
-//                         } else {
-//                             console.log(`Adding new size ${sizeToRestore}`);
-//                             updatedSizes.push({
-//                                 size: sizeToRestore,
-//                                 quantity: quantityToRestore
-//                             });
-//                         }
-//                     }
-
-//                     const newStatus = updatedQuantity > 0 ? 'Available' : 'out of stock';
-                    
-//                     const updatedProduct = await Product.findByIdAndUpdate(
-//                         productId,
-//                         {
-//                             $set: {
-//                                 quantity: updatedQuantity,
-//                                 sizes: updatedSizes,
-//                                 status: newStatus
-//                             }
-//                         },
-//                         { new: true }
-//                     );
-
-//                     console.log('Updated Product:', {
-//                         id: updatedProduct._id,
-//                         totalQuantity: updatedProduct.quantity,
-//                         sizes: updatedProduct.sizes,
-//                         status: updatedProduct.status
-//                     });
-
-//                 } catch (error) {
-//                     console.error('Error restoring quantity:', error);
-//                     throw error;
-//                 }
-//             }
-//         }
-
-//         // Adjust refund for shipping if all items are cancelled and no items were delivered
-//         const deliveredItems = order.orderedItems.filter(item => item.status === 'delivered').length;
-//         if (order.orderedItems.every(item => item.status === 'cancelled') && deliveredItems === 0) {
-//             const shippingCharge = parseFloat(order.shippingCharge || 50);
-//             refundAmount += shippingCharge;
-//         }
-
-//         // Process refund if needed
-//         if (order.PaymentMethod !== 'COD' && refundAmount > 0) {
-//             console.log(`Processing refund for order ${orderId}, amount: ${refundAmount}`);
-            
-//             try {
-//                 const refundSuccess = await processRefund(
-//                     orderId,
-//                     userId,
-//                     refundAmount,
-//                     'Order cancellation refund' + (couponWillBecomeInvalid ? ' (coupon invalidated)' : ''),
-//                     null, // Full order cancellation, no itemId
-//                     'cancel'
-//                 );
-
-//                 if (!refundSuccess) {
-//                     throw new Error('Failed to process refund');
-//                 }
-//                 console.log('Refund processed successfully');
-//             } catch (refundError) {
-//                 console.error('Refund processing failed:', refundError);
-//                 throw new Error('Failed to process refund: ' + refundError.message);
-//             }
-//         }
-
-//         // Update coupon status if it became invalid
-//         if (couponWillBecomeInvalid) {
-//             order.couponApplied = false;
-//             order.couponDetails.invalidatedAt = new Date();
-//         }
-
-//         // Calculate new final amount
-//         const newFinalAmount = Math.max(0, order.finalAmount - refundAmount);
-
-//         // Update order status
-//         const updatedOrder = await Order.findByIdAndUpdate(
-//             orderId,
-//             {
-//                 $set: {
-//                     status: 'cancelled',
-//                     isCancelledByUser: true,
-//                     cancelledAt: new Date(),
-//                     finalAmount: newFinalAmount,
-//                     'orderedItems': order.orderedItems, 
-//                     couponApplied: order.couponApplied,// Update all item statuses
-//                     couponApplied: !couponWillBecomeInvalid, // Update coupon status
-//                     couponDetails: couponWillBecomeInvalid ? { ...order.couponDetails, invalidatedAt: new Date() } : order.couponDetails
-//                 }
-//             },
-//             { new: true }
-//         );
-
-//         console.log('Order updated:', {
-//             id: updatedOrder._id,
-//             newStatus: updatedOrder.status,
-//             cancelledAt: updatedOrder.cancelledAt,
-//             newFinalAmount: updatedOrder.finalAmount,
-//             couponApplied: updatedOrder.couponApplied
-//         });
-
-//         res.json({ 
-//             success: true,
-//             message: 'Order cancelled successfully and quantities restored',
-//             orderSummary: {
-//                 currentTotal: newFinalAmount,
-//                 refundedAmount: refundAmount,
-//                 couponValid: !couponWillBecomeInvalid,
-//                 discount: couponWillBecomeInvalid ? 0 : originalCouponDiscount,
-//                 shippingCharge: couponWillBecomeInvalid || allItemsCancelled ? 0 : parseFloat(order.shippingCharge || 50)
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error('Error cancelling order:', error);
-//         res.status(500).json({
-//             success: false,
-//             error: 'Failed to cancel order',
-//             details: error.message
-//         });
-//     }
-// };
 
 const cancelOrder = async (req, res) => {
     try {
@@ -718,184 +478,186 @@ const cancelOrder = async (req, res) => {
 };
 
 
-const calculateOrderTotals = (order) => {
-    const summary = {
-        originalSubtotal: 0,
-        originalTotal:0,
-        currentTotal:0,
-        currentSubtotal: 0,
-        refundedAmount: 0,
-        shippingCharge: parseFloat(order.shippingCharge || 50),
-        isFullyReturnedOrCancelled: false,
-        activeItems: 0,
-        returnRequestItems: 0,
-        couponDiscount: 0
-    };
+// const calculateOrderTotals = (order) => {
+//     const summary = {
+//         originalSubtotal: 0,
+//         originalTotal:0,
+//         currentTotal:0,
+//         currentSubtotal: 0,
+//         refundedAmount: 0,
+//         shippingCharge: parseFloat(order.shippingCharge || 50),
+//         isFullyReturnedOrCancelled: false,
+//         activeItems: 0,
+//         returnRequestItems: 0,
+//         couponDiscount: 0
+//     };
 
-    // Calculate all subtotals
-    order.orderedItems.forEach(item => {
-        const itemTotal = parseFloat((item.quantity * item.price).toFixed(2));
-        summary.originalSubtotal += itemTotal;
+//     // Calculate all subtotals
+//     order.orderedItems.forEach(item => {
+//         const itemTotal = parseFloat((item.quantity * item.price).toFixed(2));
+//         summary.originalSubtotal += itemTotal;
         
-        if (item.status === 'Return Request') {
-            summary.returnRequestItems++;
-            summary.refundedAmount += itemTotal;
-        } else if (item.status === 'cancelled' || item.status === 'Returned') {
-            summary.refundedAmount += itemTotal;
-        } else {
-            summary.activeItems++;
-            summary.currentSubtotal += itemTotal;
-        }
-    });
+//         if (item.status === 'Return Request') {
+//             summary.returnRequestItems++;
+//             summary.refundedAmount += itemTotal;
+//         } else if (item.status === 'cancelled' || item.status === 'Returned') {
+//             summary.refundedAmount += itemTotal;
+//         } else {
+//             summary.activeItems++;
+//             summary.currentSubtotal += itemTotal;
+//         }
+//     });
 
-    // Check if order is fully returned/cancelled
-    summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
-        ['cancelled', 'Returned', 'Return Request'].includes(item.status)
-    );
+//     // Check if order is fully returned/cancelled
+//     summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
+//         ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+//     );
 
-    // Apply coupon discount if it exists (even for historical view)
-    if (order.couponApplied && order.couponDetails) {
-        summary.couponDiscount = parseFloat(order.couponDetails.discountAmount || 0);
-    }
+//     // Apply coupon discount if it exists (even for historical view)
+//     if (order.couponApplied && order.couponDetails) {
+//         summary.couponDiscount = parseFloat(order.couponDetails.discountAmount || 0);
+//     }
 
-    // Calculate original totals WITH coupon discount (what the customer actually paid)
-    summary.originalSubtotalWithDiscount = summary.originalSubtotal - summary.couponDiscount;
-    summary.originalTotal = summary.originalSubtotalWithDiscount + summary.shippingCharge;
+//     // Calculate original totals WITH coupon discount (what the customer actually paid)
+//     summary.originalSubtotalWithDiscount = summary.originalSubtotal - summary.couponDiscount;
+//     summary.originalTotal = summary.originalSubtotalWithDiscount + summary.shippingCharge;
     
-    // For fully returned/cancelled orders
-    if (summary.isFullyReturnedOrCancelled) {
-        // For online payments, the refund should be exactly what the customer paid
-        if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
-            // Ensure refund includes coupon discount
-            if (order.finalAmount) {
-                // Use the stored final amount if available (most accurate)
-                summary.refundedAmount = parseFloat(order.finalAmount);
-            } else {
-                // Otherwise calculate it
-                summary.refundedAmount = summary.originalTotal;
-            }
-        }
-        summary.currentTotal = 0;
-    } else {
-        // Calculate current total for active orders
-        summary.currentTotal = summary.currentSubtotal;
+//     // For fully returned/cancelled orders
+//     if (summary.isFullyReturnedOrCancelled) {
+//         // For online payments, the refund should be exactly what the customer paid
+//         if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
+//             // Ensure refund includes coupon discount
+//             if (order.finalAmount) {
+//                 // Use the stored final amount if available (most accurate)
+//                 summary.refundedAmount = parseFloat(order.finalAmount);
+//             } else {
+//                 // Otherwise calculate it
+//                 summary.refundedAmount = summary.originalTotal;
+//             }
+//         }
+//         summary.currentTotal = 0;
+//     } else {
+//         // Calculate current total for active orders
+//         summary.currentTotal = summary.currentSubtotal;
         
-        // Apply coupon if applicable
-        if (order.couponApplied && order.couponDetails) {
-            summary.currentTotal -= summary.couponDiscount;
-        }
+//         // Apply coupon if applicable
+//         if (order.couponApplied && order.couponDetails) {
+//             summary.currentTotal -= summary.couponDiscount;
+//         }
         
-        // Add shipping charge to current total
-        summary.currentTotal += summary.shippingCharge;
-    }
+//         // Add shipping charge to current total
+//         summary.currentTotal += summary.shippingCharge;
+//     }
 
-    // Ensure all monetary values are fixed to 2 decimal places
-    summary.originalSubtotal = parseInt(summary.originalSubtotal.toFixed(2));
-    summary.currentSubtotal = parseInt(summary.currentSubtotal.toFixed(2));
-    summary.refundedAmount = parseInt(summary.refundedAmount.toFixed(2));
-    summary.originalTotal = parseInt(summary.originalTotal.toFixed(2));
-    summary.currentTotal = parseInt(summary.currentTotal.toFixed(2));
-    summary.couponDiscount = parseInt(summary.couponDiscount.toFixed(2));
+//     // Ensure all monetary values are fixed to 2 decimal places
+//     summary.originalSubtotal = parseInt(summary.originalSubtotal.toFixed(2));
+//     summary.currentSubtotal = parseInt(summary.currentSubtotal.toFixed(2));
+//     summary.refundedAmount = parseInt(summary.refundedAmount.toFixed(2));
+//     summary.originalTotal = parseInt(summary.originalTotal.toFixed(2));
+//     summary.currentTotal = parseInt(summary.currentTotal.toFixed(2));
+//     summary.couponDiscount = parseInt(summary.couponDiscount.toFixed(2));
 
-    return summary;
-};
+//     return summary;
+// };
 
 
-const processRefund = async (orderId, userId, amount, reason, itemId = null, actionType = 'cancel') => {
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) throw new Error('Order not found');
+// const processRefund = async (orderId, userId, amount, reason, itemId = null, actionType = 'cancel') => {
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) throw new Error('Order not found');
         
-        // No refund needed for COD orders
-        if (order.PaymentMethod === 'COD') {
-            return true;
-        }
+//         // No refund needed for COD orders
+//         if (order.PaymentMethod === 'COD') {
+//             return true;
+//         }
         
-        // Find or create wallet
-        let wallet = await Wallet.findOne({ user: userId });
-        console.log('wallet before:', wallet);
+//         // Find or create wallet
+//         let wallet = await Wallet.findOne({ user: userId });
+//         console.log('wallet before:', wallet);
         
-        if (!wallet) {
-            wallet = new Wallet({ 
-                user: userId,
-                balance: 0,
-                transactions: []
-            });
-            await wallet.save();
-            console.log('Created new wallet');
-        }
+//         if (!wallet) {
+//             wallet = new Wallet({ 
+//                 user: userId,
+//                 balance: 0,
+//                 transactions: []
+//             });
+//             await wallet.save();
+//             console.log('Created new wallet');
+//         }
         
-        // Ensure amount is a valid number
-        let refundAmount = parseFloat(Number(amount).toFixed(2));
-        if (isNaN(refundAmount) || refundAmount <= 0) {
-            throw new Error(`Invalid refund amount: ${amount}`);
-        }
+//         // Ensure amount is a valid number
+//         let refundAmount = parseFloat(Number(amount).toFixed(2));
+//         if (isNaN(refundAmount) || refundAmount <= 0) {
+//             throw new Error(`Invalid refund amount: ${amount}`);
+//         }
         
-        // Individual item refund handling
-        if (itemId) {
-            const itemIndex = order.orderedItems.findIndex(item => 
-                item._id.toString() === itemId.toString()
-            );
+//         // Individual item refund handling
+//         if (itemId) {
+//             const itemIndex = order.orderedItems.findIndex(item => 
+//                 item._id.toString() === itemId.toString()
+//             );
             
-            if (itemIndex !== -1) {
-                order.orderedItems[itemIndex].status = actionType === 'cancel' ? 'cancelled' : 'Returned';
+//             if (itemIndex !== -1) {
+//                 order.orderedItems[itemIndex].status = actionType === 'cancel' ? 'cancelled' : 'Returned';
                 
-                // For individual items, calculate proportional refund including coupon effect
-                if (!amount) {
-                    const itemValue = order.orderedItems[itemIndex].quantity * order.orderedItems[itemIndex].price;
-                    const totalValue = order.orderedItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-                    const proportion = itemValue / totalValue;
+//                 // For individual items, calculate proportional refund including coupon effect
+//                 if (!amount) {
+//                     const itemValue = order.orderedItems[itemIndex].quantity * order.orderedItems[itemIndex].price;
+//                     const totalValue = order.orderedItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+//                     const proportion = itemValue / totalValue;
                     
-                    // Apply proportion to the actual amount paid (finalAmount includes coupon)
-                    refundAmount = order.finalAmount * proportion;
-                }
-            }
-        }
+//                     // Apply proportion to the actual amount paid (finalAmount includes coupon)
+//                     refundAmount = order.finalAmount * proportion;
+//                 }
+//             }
+//         }
         
-        // Update wallet with transaction
-        wallet.balance += refundAmount;
-        wallet.transactions.push({
-            amount: refundAmount,
-            type: 'credit',
-            description: reason,
-            orderId: orderId,
-            itemId: itemId || undefined,
-            timestamp: new Date()
-        });
+//         // Update wallet with transaction
+//         wallet.balance += refundAmount;
+//         wallet.transactions.push({
+//             amount: refundAmount,
+//             type: 'credit',
+//             description: reason,
+//             orderId: orderId,
+//             itemId: itemId || undefined,
+//             timestamp: new Date()
+//         });
         
-        // Save wallet changes
-        const updatedWallet = await wallet.save();
-        console.log('Updated wallet balance:', updatedWallet.balance);
+//         // Save wallet changes
+//         const updatedWallet = await wallet.save();
+//         console.log('Updated wallet balance:', updatedWallet.balance);
         
-        // Update order refund status
-        if (!order.refundStatus) {
-            order.refundStatus = {
-                isRefunded: true,
-                refundedAmount: refundAmount,
-                refundedAt: new Date(),
-                refundMethod: 'wallet',
-                shippingRefunded: !itemId // Only mark shipping as refunded for full order cancellations
-            };
-        } else {
-            // Add to the existing refunded amount
-            order.refundStatus.refundedAmount = 
-                parseFloat((parseFloat(order.refundStatus.refundedAmount || 0) + refundAmount).toFixed(2));
-            order.refundStatus.refundedAt = new Date();
+//         // Update order refund status
+//         if (!order.refundStatus) {
+//             order.refundStatus = {
+//                 isRefunded: true,
+//                 refundedAmount: refundAmount,
+//                 refundedAt: new Date(),
+//                 refundMethod: 'wallet',
+//                 shippingRefunded: !itemId // Only mark shipping as refunded for full order cancellations
+//             };
+//         } else {
+//             // Add to the existing refunded amount
+//             order.refundStatus.refundedAmount = 
+//                 parseFloat((parseFloat(order.refundStatus.refundedAmount || 0) + refundAmount).toFixed(2));
+//             order.refundStatus.refundedAt = new Date();
             
-            // Mark shipping as refunded for full order cancellations
-            if (!itemId) {
-                order.refundStatus.shippingRefunded = true;
-            }
-        }
+//             // Mark shipping as refunded for full order cancellations
+//             if (!itemId) {
+//                 order.refundStatus.shippingRefunded = true;
+//             }
+//         }
         
-        await order.save();
-        console.log(`Refund processed successfully: Amount ${refundAmount} credited to wallet for order ${orderId}`);
-        return true;
-    } catch (error) {
-        console.error('Refund processing error:', error);
-        throw error;
-    }
-};
+//         await order.save();
+//         console.log(`Refund processed successfully: Amount ${refundAmount} credited to wallet for order ${orderId}`);
+//         return true;
+//     } catch (error) {
+//         console.error('Refund processing error:', error);
+//         throw error;
+//     }
+// };
+
+
 
 const requestReturn = async (req, res) => {
     try {
@@ -1179,6 +941,292 @@ const getUserOrders = async (req, res) => {
 
 
 // Controller function for returning an individual order item
+
+
+// const returnOrderItem = async (req, res) => {
+//     try {
+//         const { orderId, itemId } = req.params;
+//         const { reason } = req.body; // Reason for return from the form
+        
+//         const order = await Order.findById(orderId)
+//             .populate('orderedItems.product')
+//             .populate('couponDetails.couponId');
+        
+//         if (!order) {
+//             return res.status(404).json({ success: false, error: 'Order not found' });
+//         }
+        
+//         // Find the item using findIndex
+//         const itemIndex = order.orderedItems.findIndex(item =>
+//             item._id.toString() === itemId.toString()
+//         );
+        
+//         if (itemIndex === -1) {
+//             return res.status(404).json({ success: false, error: 'Item not found' });
+//         }
+        
+//         const item = order.orderedItems[itemIndex];
+        
+//         // Validate return eligibility
+//         if (item.status === 'cancelled' || item.status === 'Returned' || item.status === 'Return Request') {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Item is already cancelled, returned, or has a pending return request'
+//             });
+//         }
+        
+//         if (order.status !== 'delivered') {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Only delivered orders can be returned'
+//             });
+//         }
+        
+//         // Calculate days since delivery
+//         const deliveredDate = new Date(order.deliveredAt);
+//         const currentDate = new Date();
+//         const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
+        
+//         // Check if return is within allowed period (e.g., 7 days)
+//         const RETURN_WINDOW_DAYS = 7;
+//         if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: `Return period of ${RETURN_WINDOW_DAYS} days has expired`
+//             });
+//         }
+        
+//         // Update item status to 'Return Request'
+//         item.status = 'Return Request';
+        
+//         // Add return request details
+//         if (!order.returnRequests) {
+//             order.returnRequests = [];
+//         }
+        
+//         order.returnRequests.push({
+//             itemId: itemId,
+//             reason: reason || 'No reason provided',
+//             requestedAt: new Date(),
+//             status: 'pending'
+//         });
+        
+//         // Check if all items are now in return or cancelled state
+//         const isFullyReturned = order.orderedItems.every(item =>
+//             ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+//         );
+        
+//         if (isFullyReturned) {
+//             order.status = 'Return Request';
+//         }
+        
+//         await order.save();
+//         const summary = calculateOrderTotals(order);
+        
+//         res.json({
+//             success: true,
+//             message: 'Return request submitted successfully',
+//             orderSummary: {
+//                 isFullyReturnedOrCancelled: summary.isFullyReturnedOrCancelled,
+//                 currentTotal: summary.currentTotal,
+//                 returnRequestItems: summary.returnRequestItems,
+//                 status: order.status
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Error processing return request:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to process return request',
+//             details: error.message
+//         });
+//     }
+// };
+
+// const returnOrderItem = async (req, res) => {
+//     try {
+//         const { orderId, itemId } = req.params;
+//         const { reason } = req.body; // Reason for return from the form
+        
+//         const order = await Order.findById(orderId)
+//             .populate('orderedItems.product')
+//             .populate('couponDetails.couponId');
+        
+//         if (!order) {
+//             return res.status(404).json({ success: false, error: 'Order not found' });
+//         }
+        
+//         // Find the item using findIndex
+//         const itemIndex = order.orderedItems.findIndex(item =>
+//             item._id.toString() === itemId.toString()
+//         );
+        
+//         if (itemIndex === -1) {
+//             return res.status(404).json({ success: false, error: 'Item not found' });
+//         }
+        
+//         const item = order.orderedItems[itemIndex];
+        
+//         // Validate return eligibility
+//         if (item.status === 'cancelled' || item.status === 'Returned' || item.status === 'Return Request') {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Item is already cancelled, returned, or has a pending return request'
+//             });
+//         }
+        
+//         if (order.status !== 'delivered') {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Only delivered orders can be returned'
+//             });
+//         }
+        
+//         // Calculate days since delivery
+//         const deliveredDate = new Date(order.deliveredAt);
+//         const currentDate = new Date();
+//         const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
+        
+//         // Check if return is within allowed period (e.g., 7 days)
+//         const RETURN_WINDOW_DAYS = 7;
+//         if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: `Return period of ${RETURN_WINDOW_DAYS} days has expired`
+//             });
+//         }
+        
+//         // Count active items before updating status
+//         const activeItemsBeforeReturn = order.orderedItems.filter(item => 
+//             !['cancelled', 'Returned', 'Return Request'].includes(item.status)
+//         ).length;
+
+//         // Check if this is the last active item
+//         const isLastActiveItem = activeItemsBeforeReturn === 1;
+        
+//         // Update item status to 'Return Request'
+//         item.status = 'Return Request';
+        
+//         // Add return request details
+//         if (!order.returnRequests) {
+//             order.returnRequests = [];
+//         }
+        
+//         order.returnRequests.push({
+//             itemId: itemId,
+//             reason: reason || 'No reason provided',
+//             requestedAt: new Date(),
+//             status: 'pending'
+//         });
+        
+//         // Check if all items are now in return or cancelled state
+//         const isFullyReturned = order.orderedItems.every(item =>
+//             ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+//         );
+        
+//         if (isFullyReturned) {
+//             order.status = 'Return Request';
+//         }
+        
+//         // Process refund if online/wallet payment - similar to cancelOrderItem
+//         if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
+//             // Calculate the proportional refund based on the item and coupon
+//             const itemTotal = item.quantity * item.price;
+            
+//             // Calculate the refund including coupon proportion
+//             let refundAmount;
+            
+//             if (order.couponApplied && order.couponDetails && order.couponDetails.discountAmount > 0) {
+//                 // Calculate the proportion of this item to the total order value
+//                 const totalOrderValue = order.orderedItems.reduce((total, orderItem) => {
+//                     return total + (orderItem.quantity * orderItem.price);
+//                 }, 0);
+                
+//                 // Calculate what percentage of the order this item represents
+//                 const itemProportion = itemTotal / totalOrderValue;
+                
+//                 // Calculate the proportional coupon discount for this item
+//                 const proportionalDiscount = itemProportion * order.couponDetails.discountAmount;
+                
+//                 // The refund amount is the item price minus its share of the discount
+//                 refundAmount = itemTotal - proportionalDiscount;
+//             } else {
+//                 // Without coupon, refund the full item amount
+//                 refundAmount = itemTotal;
+//             }
+
+//             // For returns, we might refund shipping if this is the last active item or all items are returned
+//             if (isLastActiveItem || isFullyReturned) {
+//                 const shippingCharge = parseFloat(order.shippingCharge || 50);
+//                 refundAmount += shippingCharge;
+                
+//                 // Mark shipping as refunded in order status
+//                 if (!order.refundStatus) {
+//                     order.refundStatus = {
+//                         isRefunded: true,
+//                         refundedAmount: 0,
+//                         refundedAt: new Date(),
+//                         refundMethod: 'wallet',
+//                         shippingRefunded: true
+//                     };
+//                 } else {
+//                     order.refundStatus.shippingRefunded = true;
+//                 }
+//             }
+            
+//             // Apply any return processing fees if applicable
+//             // const returnProcessingFee = 25;  // Example return processing fee
+//             // refundAmount -= returnProcessingFee;
+            
+//             // Ensure refund amount is not negative
+//             refundAmount = Math.max(refundAmount, 0);
+            
+//             try {
+//                 const refundSuccess = await processRefund(
+//                     order._id,
+//                     order.user,
+//                     refundAmount,
+//                     isLastActiveItem ? 'Item return refund with shipping' : 'Item return refund',
+//                     itemId,
+//                     'return',  // Use 'return' as action type instead of 'cancel'
+//                     isLastActiveItem
+//                 );
+                
+//                 if (!refundSuccess) {
+//                     throw new Error('Failed to process refund');
+//                 }
+//             } catch (refundError) {
+//                 console.error('Refund processing failed:', refundError);
+//                 throw new Error('Failed to process refund: ' + refundError.message);
+//             }
+//         }
+        
+//         await order.save();
+//         const summary = await calculateOrderTotals(order);
+        
+//         res.json({
+//             success: true,
+//             message: 'Return request submitted successfully',
+//             orderSummary: {
+//                 isFullyReturnedOrCancelled: summary.isFullyReturnedOrCancelled,
+//                 currentTotal: summary.currentTotal,
+//                 refundedAmount: summary.showRefund ? summary.refundedAmount : 0,
+//                 returnRequestItems: summary.returnRequestItems,
+//                 status: order.status,
+//                 shippingRefunded: isLastActiveItem || isFullyReturned
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Error processing return request:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to process return request',
+//             details: error.message
+//         });
+//     }
+// };
+
+
 const returnOrderItem = async (req, res) => {
     try {
         const { orderId, itemId } = req.params;
@@ -1219,7 +1267,7 @@ const returnOrderItem = async (req, res) => {
         }
         
         // Calculate days since delivery
-        const deliveredDate = new Date(order.deliveredAt);
+        const deliveredDate = new Date(order.deliveredDate);
         const currentDate = new Date();
         const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
         
@@ -1232,7 +1280,15 @@ const returnOrderItem = async (req, res) => {
             });
         }
         
-        // Update item status to 'Return Request'
+        // Count active items before updating status
+        const activeItemsBeforeReturn = order.orderedItems.filter(item => 
+            !['cancelled', 'Returned', 'Return Request'].includes(item.status)
+        ).length;
+
+        // Check if this is the last active item
+        const isLastActiveItem = activeItemsBeforeReturn === 1;
+        
+        // Update item status to 'Return Request' - NOT processing refund at this stage
         item.status = 'Return Request';
         
         // Add return request details
@@ -1256,8 +1312,9 @@ const returnOrderItem = async (req, res) => {
             order.status = 'Return Request';
         }
         
+        // We are NOT processing refunds at this stage - just saving the return request
         await order.save();
-        const summary = calculateOrderTotals(order);
+        const summary = await calculateOrderTotals(order);
         
         res.json({
             success: true,
@@ -1265,8 +1322,12 @@ const returnOrderItem = async (req, res) => {
             orderSummary: {
                 isFullyReturnedOrCancelled: summary.isFullyReturnedOrCancelled,
                 currentTotal: summary.currentTotal,
+                // Not showing refund amounts yet since item is in "Return Request" state, not "Returned"
+                refundedAmount: 0,  
                 returnRequestItems: summary.returnRequestItems,
-                status: order.status
+                status: order.status,
+                // Not marking shipping as refunded yet
+                shippingRefunded: false
             }
         });
     } catch (error) {
@@ -1279,8 +1340,173 @@ const returnOrderItem = async (req, res) => {
     }
 };
 
+// Create a new function to approve returns and process refunds
+const approveReturnRequest = async (req, res) => {
+    try {
+        const { orderId, itemId } = req.params;
+        
+        const order = await Order.findById(orderId)
+            .populate('orderedItems.product')
+            .populate('couponDetails.couponId');
+        
+        if (!order) {
+            return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+        
+        // Find the item using findIndex
+        const itemIndex = order.orderedItems.findIndex(item =>
+            item._id.toString() === itemId.toString()
+        );
+        
+        if (itemIndex === -1) {
+            return res.status(404).json({ success: false, error: 'Item not found' });
+        }
+        
+        const item = order.orderedItems[itemIndex];
+        
+        // Validate item is in "Return Request" status
+        if (item.status !== 'Return Request') {
+            return res.status(400).json({
+                success: false,
+                error: 'Item is not in Return Request status'
+            });
+        }
+        
+        // Find the return request
+        const returnRequestIndex = order.returnRequests ? 
+            order.returnRequests.findIndex(request => 
+                request.itemId.toString() === itemId.toString() && request.status === 'pending'
+            ) : -1;
+            
+        if (returnRequestIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Return request not found'
+            });
+        }
+        
+        // Count active items before updating status
+        const activeItemsBeforeReturn = order.orderedItems.filter(item => 
+            !['cancelled', 'Returned'].includes(item.status)
+        ).length;
 
+        // Check if this is the last active item
+        const isLastActiveItem = activeItemsBeforeReturn === 1;
+        
+        // Update item status to 'Returned'
+        item.status = 'Returned';
+        
+        // Update return request status
+        order.returnRequests[returnRequestIndex].status = 'approved';
+        order.returnRequests[returnRequestIndex].approvedAt = new Date();
+        
+        // Check if all items are now returned or cancelled
+        const isFullyReturned = order.orderedItems.every(item =>
+            ['cancelled', 'Returned'].includes(item.status)
+        );
+        
+        if (isFullyReturned) {
+            order.status = 'Returned';
+        }
+        
+        // NOW process refund if online/wallet payment
+        if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
+            // Calculate the proportional refund based on the item and coupon
+            const itemTotal = item.quantity * item.price;
+            
+            // Calculate the refund including coupon proportion
+            let refundAmount;
+            
+            if (order.couponApplied && order.couponDetails && order.couponDetails.discountAmount > 0) {
+                // Calculate the proportion of this item to the total order value
+                const totalOrderValue = order.orderedItems.reduce((total, orderItem) => {
+                    return total + (orderItem.quantity * orderItem.price);
+                }, 0);
+                
+                // Calculate what percentage of the order this item represents
+                const itemProportion = itemTotal / totalOrderValue;
+                
+                // Calculate the proportional coupon discount for this item
+                const proportionalDiscount = itemProportion * order.couponDetails.discountAmount;
+                
+                // The refund amount is the item price minus its share of the discount
+                refundAmount = itemTotal - proportionalDiscount;
+            } else {
+                // Without coupon, refund the full item amount
+                refundAmount = itemTotal;
+            }
 
+            // Refund shipping if this is the last active item or all items are returned
+            if (isLastActiveItem || isFullyReturned) {
+                const shippingCharge = parseFloat(order.shippingCharge || 50);
+                refundAmount += shippingCharge;
+                
+                // Mark shipping as refunded in order status
+                if (!order.refundStatus) {
+                    order.refundStatus = {
+                        isRefunded: true,
+                        refundedAmount: 0,
+                        refundedAt: new Date(),
+                        refundMethod: 'wallet',
+                        shippingRefunded: true
+                    };
+                } else {
+                    order.refundStatus.shippingRefunded = true;
+                }
+            }
+            
+            // Apply any return processing fees if applicable
+            // const returnProcessingFee = 25;  // Example return processing fee
+            // refundAmount -= returnProcessingFee;
+            
+            // Ensure refund amount is not negative
+            refundAmount = Math.max(refundAmount, 0);
+            
+            try {
+                const refundSuccess = await processRefund(
+                    order._id,
+                    order.user,
+                    refundAmount,
+                    isLastActiveItem ? 'Item return refund with shipping' : 'Item return refund',
+                    itemId,
+                    'return',
+                    isLastActiveItem
+                );
+                
+                if (!refundSuccess) {
+                    throw new Error('Failed to process refund');
+                }
+            } catch (refundError) {
+                console.error('Refund processing failed:', refundError);
+                throw new Error('Failed to process refund: ' + refundError.message);
+            }
+        }
+        
+        await order.save();
+        const summary = await calculateOrderTotals(order);
+        
+        res.json({
+            success: true,
+            message: 'Return approved and refund processed successfully',
+            orderSummary: {
+                isFullyReturnedOrCancelled: summary.isFullyReturnedOrCancelled,
+                currentTotal: summary.currentTotal,
+                refundedAmount: summary.showRefund ? summary.refundedAmount : 0,
+                returnRequestItems: summary.returnRequestItems,
+                status: order.status,
+                shippingRefunded: (isLastActiveItem || isFullyReturned) && 
+                    (order.refundStatus && order.refundStatus.shippingRefunded)
+            }
+        });
+    } catch (error) {
+        console.error('Error approving return request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to approve return request',
+            details: error.message
+        });
+    }
+};
 
 
 async function restoreProductQuantity(item) {
@@ -1392,60 +1618,6 @@ const validateAndApplyCoupon = async (order, couponId) => {
 
 
 
-// const calculateOrderTotals = (order) => {
-//     const summary = {
-//         originalSubtotal: 0,
-//         currentSubtotal: 0,
-//         refundedAmount: 0,
-//         shippingCharge: parseInt(order.shippingCharge || 50),
-//         isFullyReturnedOrCancelled: false,
-//         activeItems: 0,
-//         returnRequestItems: 0,
-//         couponDiscount: 0  // Initialize with 0
-//     };
-
-//     // Calculate all subtotals
-//     order.orderedItems.forEach(item => {
-//         const itemTotal = item.quantity * item.price;
-//         summary.originalSubtotal += itemTotal;
-        
-//         if (item.status === 'Return Request') {
-//             summary.returnRequestItems++;
-//             summary.refundedAmount += itemTotal;
-//         } else if (item.status === 'cancelled' || item.status === 'Returned') {
-//             summary.refundedAmount += itemTotal;
-//         } else {
-//             summary.activeItems++;
-//             summary.currentSubtotal += itemTotal;
-//         }
-//     });
-
-//     // Check if order is fully returned/cancelled
-//     summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
-//         ['cancelled', 'Returned', 'Return Request'].includes(item.status)
-//     );
-
-//     // Apply coupon discount - even for cancelled orders to maintain history
-//     if (order.couponApplied && order.couponDetails && order.couponDetails.discountAmount) {
-//         summary.couponDiscount = parseFloat(order.couponDetails.discountAmount);
-//     }
-
-//     // Calculate final amounts
-//     summary.originalTotal = summary.originalSubtotal + summary.shippingCharge - summary.couponDiscount;
-    
-//     // Handle shipping charge in refund calculation
-//     if (summary.isFullyReturnedOrCancelled) {
-//         if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
-//             // For fully cancelled orders, we want to include the discounted price in the refund
-//             summary.refundedAmount = summary.originalTotal;
-//         }
-//         summary.currentTotal = 0;
-//     } else {
-//         summary.currentTotal = summary.currentSubtotal + summary.shippingCharge - summary.couponDiscount;
-//     }
-
-//     return summary;
-// };
 
 
 
@@ -1495,6 +1667,103 @@ const updateOrderAfterModification = async (order, totals) => {
 };
 
 
+//this is main///
+// const cancelOrderItem = async (req, res) => {
+//     try {
+//         const { orderId, itemId } = req.params;
+//         const order = await Order.findById(orderId)
+//             .populate('orderedItems.product')
+//             .populate('couponDetails.couponId');
+       
+//         if (!order) {
+//             return res.status(404).json({ success: false, error: 'Order not found' });
+//         }
+        
+//         // Find the item using findIndex instead of .id()
+//         const itemIndex = order.orderedItems.findIndex(item => 
+//             item._id.toString() === itemId.toString()
+//         );
+        
+//         if (itemIndex === -1) {
+//             return res.status(404).json({ success: false, error: 'Item not found' });
+//         }
+        
+//         const item = order.orderedItems[itemIndex];
+        
+//         if (item.status === 'cancelled' || item.status === 'Returned') {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Item is already cancelled or returned'
+//             });
+//         }
+        
+//         if (!['pending', 'processing'].includes(order.status)) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Only pending or processing orders can be cancelled'
+//             });
+//         }
+        
+//         // Update item status
+//         item.status = 'cancelled';
+        
+//         const isFullyCancelled = order.orderedItems.every(item =>
+//             item.status === 'cancelled' || item.status === 'Returned'
+//         );
+       
+//         // Process refund for online/wallet payments
+//         if ((order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet')) {
+//             const refundAmount = item.quantity * item.price;
+           
+//             try {
+//                 const refundSuccess = await processRefund(
+//                     order._id,
+//                     order.user,
+//                     refundAmount,
+//                     'Item cancellation refund',
+//                     itemId,  // Pass the itemId
+//                     'cancel' // Specify the action type
+//                 );
+               
+//                 if (!refundSuccess) {
+//                     throw new Error('Failed to process refund');
+//                 }
+//             } catch (refundError) {
+//                 console.error('Refund processing failed:', refundError);
+//                 throw new Error('Failed to process refund: ' + refundError.message);
+//             }
+//         }
+        
+//         // Update order status if needed
+//         if (isFullyCancelled) {
+//             order.status = 'cancelled';
+//             order.cancelledAt = new Date();
+//         }
+        
+//         await order.save();
+//         const summary = await calculateOrderTotals(order);
+        
+//         res.json({
+//             success: true,
+//             message: 'Item cancelled successfully',
+//             orderSummary: {
+//                 isFullyCancelled: summary.isFullyCancelled,
+//                 currentTotal: summary.currentTotal,
+//                 refundedAmount: summary.showRefund ? summary.refundedAmount : 0,
+//                 status: order.status
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Error cancelling order item:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to cancel order item',
+//             details: error.message
+//         });
+//     }
+// };
+
+
 
 const cancelOrderItem = async (req, res) => {
     try {
@@ -1507,7 +1776,7 @@ const cancelOrderItem = async (req, res) => {
             return res.status(404).json({ success: false, error: 'Order not found' });
         }
         
-        // Find the item using findIndex instead of .id()
+        // Find the item using findIndex
         const itemIndex = order.orderedItems.findIndex(item => 
             item._id.toString() === itemId.toString()
         );
@@ -1532,6 +1801,14 @@ const cancelOrderItem = async (req, res) => {
             });
         }
         
+  // Count active items before updating status
+  const activeItemsBeforeCancel = order.orderedItems.filter(item => 
+    !['cancelled', 'Returned', 'Return Request'].includes(item.status)
+).length;
+
+// Check if this is the last active item
+const isLastActiveItem = activeItemsBeforeCancel === 1;
+
         // Update item status
         item.status = 'cancelled';
         
@@ -1540,17 +1817,70 @@ const cancelOrderItem = async (req, res) => {
         );
        
         // Process refund for online/wallet payments
-        if ((order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet')) {
-            const refundAmount = item.quantity * item.price;
+        if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
+            // Calculate the proportional refund based on the item and coupon
+            const itemTotal = item.quantity * item.price;
+            
+            // Calculate the refund including coupon proportion
+            let refundAmount;
+            
+            if (order.couponApplied && order.couponDetails && order.couponDetails.discountAmount > 0) {
+                // Calculate the proportion of this item to the total order value
+                const totalOrderValue = order.orderedItems.reduce((total, orderItem) => {
+                    return total + (orderItem.quantity * orderItem.price);
+                }, 0);
+                
+                // Calculate what percentage of the order this item represents
+                const itemProportion = itemTotal / totalOrderValue;
+                
+                // Calculate the proportional coupon discount for this item
+                const proportionalDiscount = itemProportion * order.couponDetails.discountAmount;
+                
+                // The refund amount is the item price minus its share of the discount
+                refundAmount = itemTotal - proportionalDiscount;
+            } else {
+                // Without coupon, refund the full item amount
+                refundAmount = itemTotal;
+            }
+
+
+            if (isLastActiveItem || isFullyCancelled) {
+                const shippingCharge = parseFloat(order.shippingCharge || 50);
+                refundAmount += shippingCharge;
+                
+                // Mark shipping as refunded in order status
+                if (!order.refundStatus) {
+                    order.refundStatus = {
+                        isRefunded: true,
+                        refundedAmount: 0,
+                        refundedAt: new Date(),
+                        refundMethod: 'wallet',
+                        shippingRefunded: true
+                    };
+                } else {
+                    order.refundStatus.shippingRefunded = true;
+                }
+            }
+            
+            // Apply any necessary processing/cancellation fees based on order stage
+            if (order.status === 'processing') {
+                // Consider a processing fee if needed
+                // const processingFee = 50;  // Example processing fee
+                // refundAmount -= processingFee;
+            }
+            
+            // Ensure refund amount is not negative
+            refundAmount = Math.max(refundAmount, 0);
            
             try {
                 const refundSuccess = await processRefund(
                     order._id,
                     order.user,
                     refundAmount,
-                    'Item cancellation refund',
-                    itemId,  // Pass the itemId
-                    'cancel' // Specify the action type
+                    isLastActiveItem ? 'Item cancellation refund with shipping' : 'Item cancellation refund',
+                    itemId,
+                    'cancel',
+                    isLastActiveItem
                 );
                
                 if (!refundSuccess) {
@@ -1578,7 +1908,8 @@ const cancelOrderItem = async (req, res) => {
                 isFullyCancelled: summary.isFullyCancelled,
                 currentTotal: summary.currentTotal,
                 refundedAmount: summary.showRefund ? summary.refundedAmount : 0,
-                status: order.status
+                status: order.status,
+                shippingRefunded: isLastActiveItem || isFullyCancelled
             }
         });
     } catch (error) {
@@ -1591,6 +1922,316 @@ const cancelOrderItem = async (req, res) => {
     }
 };
 
+const processRefund = async (orderId, userId, amount, reason, itemId = null, actionType = 'cancel',isLastActive = false) => {
+    try {
+        const order = await Order.findById(orderId)
+            .populate('orderedItems.product')
+            .populate('couponDetails.couponId');
+        
+        if (!order) throw new Error('Order not found');
+        
+        // No refund needed for COD orders
+        if (order.PaymentMethod === 'COD') {
+            return true;
+        }
+        
+        // Find or create wallet
+        let wallet = await Wallet.findOne({ user: userId });
+        console.log('wallet before:', wallet);
+        
+        if (!wallet) {
+            wallet = new Wallet({ 
+                user: userId,
+                balance: 0,
+                transactions: []
+            });
+            await wallet.save();
+            console.log('Created new wallet');
+        }
+        
+        // Initialize refund amount with the passed-in amount (if provided)
+        let refundAmount = parseFloat(Number(amount).toFixed(2));
+        
+        // Validate refund amount
+        if (isNaN(refundAmount) || refundAmount <= 0) {
+            console.error(`Invalid refund amount provided: ${amount}, recalculating...`);
+            
+            // If we have an itemId, calculate the proper refund based on the item
+            if (itemId) {
+                const itemIndex = order.orderedItems.findIndex(item => 
+                    item._id.toString() === itemId.toString()
+                );
+                
+                if (itemIndex !== -1) {
+                    const item = order.orderedItems[itemIndex];
+                    const itemTotal = item.quantity * item.price;
+                    
+                    // If coupon was applied, calculate proportional refund
+                    if (order.couponApplied && order.couponDetails && order.couponDetails.discountAmount > 0) {
+                        // Calculate total order value
+                        const totalOrderValue = order.orderedItems.reduce((total, orderItem) => {
+                            return total + (orderItem.quantity * orderItem.price);
+                        }, 0);
+                        
+                        // Calculate what percentage of the order this item represents
+                        const itemProportion = itemTotal / totalOrderValue;
+                        
+                        // Calculate the proportional coupon discount for this item
+                        const proportionalDiscount = itemProportion * order.couponDetails.discountAmount;
+                        
+                        // The refund amount is the item price minus its share of the discount
+                        refundAmount = itemTotal - proportionalDiscount;
+                    } else {
+                        // Without coupon, refund the full item amount
+                        refundAmount = itemTotal;
+                    }
+
+                    if (isLastActive) {
+                        const shippingCharge = parseFloat(order.shippingCharge || 50);
+                        refundAmount += shippingCharge;
+                    }
+                    // Mark the item as cancelled or returned
+                    order.orderedItems[itemIndex].status = actionType === 'cancel' ? 'cancelled' : 'Returned';
+                } else {
+                    throw new Error(`Item with ID ${itemId} not found in order`);
+                }
+            } else {
+                // For full order refunds, use the final amount
+                refundAmount = parseFloat(order.finalAmount || 0);
+            }
+        }
+        
+        // Ensure refund amount is valid after recalculation
+        if (isNaN(refundAmount) || refundAmount <= 0) {
+            throw new Error(`Unable to calculate a valid refund amount`);
+        }
+        
+        // For shipped items, you may want to deduct a shipping fee
+        // if (order.status === 'shipped' && actionType === 'cancel') {
+        //     const shippingFee = parseFloat(order.shippingCharge || 50);
+        //     refundAmount -= shippingFee;
+        // }
+        
+        // Ensure no negative refund
+        refundAmount = Math.max(refundAmount, 0);
+        
+        // Round to 2 decimal places
+        refundAmount = parseFloat(refundAmount.toFixed(2));
+        
+        // Update wallet with transaction
+        wallet.balance += refundAmount;
+        wallet.transactions.push({
+            amount: refundAmount,
+            type: 'credit',
+            description: reason,
+            orderId: orderId,
+            itemId: itemId || undefined,
+            timestamp: new Date()
+        });
+        
+        // Save wallet changes
+        const updatedWallet = await wallet.save();
+        console.log('Updated wallet balance:', updatedWallet.balance);
+        
+        // Update order refund status
+        if (!order.refundStatus) {
+            order.refundStatus = {
+                isRefunded: true,
+                refundedAmount: refundAmount,
+                refundedAt: new Date(),
+                refundMethod: 'wallet',
+                shippingRefunded: !itemId || isLastActive  // Only mark shipping as refunded for full order cancellations
+            };
+        } else {
+            // Add to the existing refunded amount
+            order.refundStatus.refundedAmount = 
+                parseFloat((parseFloat(order.refundStatus.refundedAmount || 0) + refundAmount).toFixed(2));
+            order.refundStatus.refundedAt = new Date();
+            
+            // Mark shipping as refunded for full order cancellations
+            if (!itemId || isLastActive) {
+                order.refundStatus.shippingRefunded = true;
+            }
+        }
+        
+        await order.save();
+        console.log(`Refund processed successfully: Amount ${refundAmount} credited to wallet for order ${orderId}`);
+        return true;
+    } catch (error) {
+        console.error('Refund processing error:', error);
+        throw error;
+    }
+};
+
+// I'll also update the calculateOrderTotals function to ensure it properly handles proportional coupon discounts
+const calculateOrderTotals = (order) => {
+    const summary = {
+        originalSubtotal: 0,
+        originalTotal: 0,
+        currentTotal: 0,
+        currentSubtotal: 0,
+        refundedAmount: 0,
+        shippingCharge: parseFloat(order.shippingCharge || 50),
+        isFullyReturnedOrCancelled: false,
+        activeItems: 0,
+        returnRequestItems: 0,
+        couponDiscount: 0,
+        showRefund: order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet'
+    };
+    
+    // Get coupon discount if applicable
+    if (order.couponApplied && order.couponDetails) {
+        summary.couponDiscount = parseFloat(order.couponDetails.discountAmount || 0);
+    }
+    
+    // Calculate original subtotal (before any cancellations/returns)
+    order.orderedItems.forEach(item => {
+        const itemTotal = parseFloat((item.quantity * item.price).toFixed(2));
+        summary.originalSubtotal += itemTotal;
+    });
+    
+    // Calculate the discount ratio for proportional coupon distribution
+    const discountRatio = summary.originalSubtotal > 0 ? summary.couponDiscount / summary.originalSubtotal : 0;
+    
+    // Process each item considering its status and proportional coupon discount
+    order.orderedItems.forEach(item => {
+        const itemTotal = parseFloat((item.quantity * item.price).toFixed(2));
+        const itemDiscount = parseFloat((itemTotal * discountRatio).toFixed(2)); // Proportional discount
+        const effectiveItemPrice = itemTotal - itemDiscount; // Price after discount
+        
+        if (item.status === 'Return Request') {
+            summary.returnRequestItems++;
+            if (summary.showRefund) {
+                summary.refundedAmount += effectiveItemPrice;
+            }
+        } else if (item.status === 'cancelled' || item.status === 'Returned') {
+            if (summary.showRefund) {
+                summary.refundedAmount += effectiveItemPrice;
+            }
+        } else {
+            summary.activeItems++;
+            summary.currentSubtotal += itemTotal; // Keep original price for active items
+        }
+    });
+    
+    // Check if order is fully returned/cancelled
+    summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
+        ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+    );
+    
+    // Calculate original total WITH coupon discount (what customer actually paid)
+    summary.originalTotal = summary.originalSubtotal + summary.shippingCharge - summary.couponDiscount;
+    
+    // For fully cancelled/returned orders, add shipping to refund if online payment
+    if ((summary.isFullyReturnedOrCancelled || (order.refundStatus && order.refundStatus.shippingRefunded)) && summary.showRefund) {
+        // Use stored final amount if available for full refunds
+        if (summary.isFullyReturnedOrCancelled && order.finalAmount) {
+            summary.refundedAmount = parseFloat(order.finalAmount);
+        } else if (order.refundStatus && order.refundStatus.shippingRefunded) {
+            // If shipping was already refunded separately, add it to the refunded amount
+            summary.refundedAmount += summary.shippingCharge;
+        }
+        
+        // If fully cancelled, set current total to 0
+        if (summary.isFullyReturnedOrCancelled) {
+            summary.currentTotal = 0;
+        } else {
+            // For partially cancelled orders where shipping was refunded
+            summary.currentTotal = summary.currentSubtotal - summary.couponDiscount;
+        }
+    } else {
+        // For partially cancelled orders without shipping refund
+        summary.currentTotal = summary.currentSubtotal - summary.couponDiscount + summary.shippingCharge;
+    }
+    
+    // Ensure all monetary values are fixed to 2 decimal places and converted to integers
+    summary.originalSubtotal = parseInt(summary.originalSubtotal.toFixed(2));
+    summary.currentSubtotal = parseInt(summary.currentSubtotal.toFixed(2));
+    summary.refundedAmount = parseInt(summary.refundedAmount.toFixed(2));
+    summary.originalTotal = parseInt(summary.originalTotal.toFixed(2));
+    summary.currentTotal = parseInt(summary.currentTotal.toFixed(2));
+    summary.couponDiscount = parseInt(summary.couponDiscount.toFixed(2));
+    
+    return summary;
+};
+
+
+// const cancelOrderItem = async (req, res) => {
+//     try {
+//         const { orderId, itemId } = req.params;
+//         const order = await Order.findById(orderId);
+
+//         if (!order) {
+//             return res.status(404).json({ success: false, error: 'Order not found' });
+//         }
+
+//         const itemIndex = order.items.findIndex(item => item._id.toString() === itemId);
+//         if (itemIndex === -1) {
+//             return res.status(404).json({ success: false, error: 'Item not found in order' });
+//         }
+
+//         const item = order.items[itemIndex];
+
+//         if (item.status === 'Cancelled') {
+//             return res.status(400).json({ success: false, error: 'Item is already cancelled' });
+//         }
+
+//         // Mark the item as cancelled
+//         item.status = 'Cancelled';
+
+//         // Recalculate Order Total after Cancellation
+//         let newSubtotal = order.items.reduce((total, item) => {
+//             return item.status !== 'Cancelled' ? total + item.price * item.quantity : total;
+//         }, 0);
+
+//         let shippingCharge = order.shippingCharge || 0;
+//         let oldFinalPayable = order.finalPayable;
+//         let appliedCoupon = order.appliedCoupon; // { code, discount, minAmount, type }
+
+//         let newFinalPayable = newSubtotal + shippingCharge;
+//         let refundAmount = item.price * item.quantity; // Default refund amount
+
+//         // Check if the coupon is still valid
+//         if (appliedCoupon && newSubtotal < appliedCoupon.minAmount) {
+//             // Remove the coupon since new total is below the minimum required amount
+//             order.appliedCoupon = null;
+//             newFinalPayable = newSubtotal + shippingCharge;
+//         } else if (appliedCoupon) {
+//             // Coupon still applies, refund must consider discounted price
+//             if (appliedCoupon.type === 'percentage') {
+//                 refundAmount -= (refundAmount * appliedCoupon.discount) / 100;
+//             } else if (appliedCoupon.type === 'flat') {
+//                 let discountPerItem = appliedCoupon.discount / order.items.length;
+//                 refundAmount -= discountPerItem;
+//             }
+//         }
+
+//         // Calculate Final Refund Amount
+//         let totalRefund = oldFinalPayable - newFinalPayable;
+
+//         // Payment Mode Handling
+//         if (order.paymentMethod === 'Razorpay' || order.paymentMethod === 'UPI') {
+//             // Refund to original payment method
+//             item.refundStatus = 'Processing';
+//         } else if (order.paymentMethod === 'Wallet') {
+//             // Refund to wallet first, then Razorpay if needed
+//             item.refundStatus = 'Processing';
+//         } else if (order.paymentMethod === 'COD') {
+//             // No refund needed
+//             totalRefund = 0;
+//             item.refundStatus = 'Not Applicable';
+//         }
+
+//         // Update Order Details
+//         order.finalPayable = newFinalPayable;
+//         await order.save();
+
+//         res.json({ success: true, message: 'Item cancelled successfully', refundAmount: totalRefund });
+//     } catch (error) {
+//         console.error('Cancel Item Error:', error);
+//         res.status(500).json({ success: false, error: 'Internal server error' });
+//     }
+// };
 
 
 const processReturnRefund = async (order, refundAmount) => {

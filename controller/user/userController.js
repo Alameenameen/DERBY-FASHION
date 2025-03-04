@@ -1,6 +1,8 @@
 const User = require("../../model/userSchema")
 const Category = require("../../model/categorySchema")
 const Product = require("../../model/productSchema")
+const Wallet = require("../../model/walletSchema")
+
 
 const env = require("dotenv").config()
 const nodemailer = require("nodemailer")
@@ -126,21 +128,20 @@ const shoppingPage = async (req, res) => {
 
 const loadSignup = async(req,res)=>{
     try{
-        return res.render('signup');
+        if (req.session.user) {
+            return res.redirect('/');
+        }
+        
+        // Get referral code from URL if present
+        const referralCode = req.query.ref || '';
+        
+        res.render('signup', { formData: {}, referralCode });
     }catch(error){
         console.log('Home page not loading',error);
         res.status(500).send("Server Error")
     }
 }
 
-// const loadVerify = async(req,res)=>{
-//     try{
-//         return res.render('verify-otp');
-//     }catch(error){
-//         console.log('otp page is not loading',error);
-//         res.status(500).send("Server Error")
-//     }
-// }
 
 
 
@@ -181,7 +182,7 @@ async function sendVerificationEmail(email,otp) {
 
 const SignUp = async(req,res)=>{
     try{
-        const{email,name,phone,password,Cpassword}= req.body;
+        const{email,name,phone,password,Cpassword,referralCode}= req.body;
         console.log("name",req.body)
 
 
@@ -189,7 +190,7 @@ const SignUp = async(req,res)=>{
         if(password !== Cpassword){
             return res.render("signup",{
                 message:"passwords do not match",
-                formData: {name, email, phone} 
+                formData: {name, email, phone,referralCode} 
             });
         }
         const findUser = await User.findOne({email});
@@ -199,9 +200,31 @@ const SignUp = async(req,res)=>{
             return res.render("signup",{
                 message:"user with this email already exists",
                 errorField: "email", // Add this to identify which field has error
-                formData: {name, email, phone}
+                formData: {name, email, phone,referralCode}
             })
         }
+
+
+        // let referringUser = null;
+        if (referralCode) {
+            referringUser = await User.findOne({ referalcode: referralCode });
+            if (!referringUser) {
+                return res.render("signup", {
+                    message: "Invalid referral code",
+                    errorField: "referralCode",
+                    formData: { name, email, phone,referralCode }
+                });
+            }
+        
+
+        if (referringUser.email === email) {
+            return res.render("signup", {
+                message: "You cannot use your own referral code",
+                errorField: "referralCode",
+                formData: { name, email, phone }
+            });
+        }
+    }
 
         const otp = generateOtp();
         console.log("Generated OTP:",otp)
@@ -216,8 +239,8 @@ const SignUp = async(req,res)=>{
         // console.log(otp)
         req.session.userOtp = otp;
         console.log(otp)
-        req.session.userData = {email,name,phone,password};
-
+        req.session.userData = {email,name,phone,password,referralCode};
+        // req.session.referringUserId = referringUser ? referringUser._id : null;
         
         // req.session.userData = {
         //     name: req.body.name,
@@ -271,18 +294,52 @@ const verifyOtp = async (req,res)=>{
         console.log("hash",passwordHash);
         
 
+        const newUserReferralCode = generateReferralCode();
+
         const saveUserData = new User({
             name:user.name,
             email:user.email,
             phone:user.phone,
-            password:passwordHash
+            password:passwordHash,
+            referalcode: newUserReferralCode,
+            redeemed: user.referralCode ? true : false,
+            wallet: 0, // Initialize wallet balance
+            redeemedUsers: [] 
         })
         console.log("save",saveUserData);
         
-
-        await saveUserData.save();
+        const savedUser = await saveUserData.save();
         // req.session.user = saveUserData._id;
         
+        if (user.referralCode) {
+            const referringUser = await User.findOne({ referalcode: user.referralCode });
+            
+            if (referringUser) {
+                // Add new user to referring user's redeemedUsers array
+                await User.findByIdAndUpdate(
+                    referringUser._id,
+                    { $push: { redeemedUsers: savedUser._id } }
+                );
+                
+                // Initialize wallet for new user with sign-up bonus
+                const REFERRED_USER_BONUS = 50; // ₹50 bonus for referred user
+                await addReferralBonus(
+                    savedUser._id,
+                    REFERRED_USER_BONUS,
+                    `Sign-up bonus from referral by ${referringUser.name}`
+                );
+                
+                // Add referral bonus to referring user
+                const REFERRER_BONUS = 100; // ₹100 bonus for referring user
+                await addReferralBonus(
+                    referringUser._id,
+                    REFERRER_BONUS,
+                    `Referral bonus for inviting ${savedUser.name}`
+                );
+            }
+        }
+
+
         delete req.session.userOtp;
         delete req.session.userData;
 
@@ -406,6 +463,100 @@ const logout = async (req,res)=>{
 }
 
 
+function generateReferralCode() {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar-looking characters
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+}
+
+// Add referral bonus to user's wallet
+async function addReferralBonus(userId, amount, description) {
+    try {
+        // Find or create user's wallet
+        let wallet = await Wallet.findOne({ user: userId });
+        if (!wallet) {
+            wallet = new Wallet({ user: userId, balance: 0, transactions: [] });
+        }
+        
+        // Add bonus to wallet balance
+        wallet.balance += amount;
+        
+        // Add transaction record
+        wallet.transactions.push({
+            amount: amount,
+            type: 'credit',
+            description: description,
+            timestamp: new Date()
+        });
+        
+        // Save wallet
+        await wallet.save();
+        
+        // Update user document wallet balance
+        await User.findByIdAndUpdate(userId, { wallet: wallet.balance });
+        
+        return true;
+    } catch (error) {
+        console.error('Error adding referral bonus:', error);
+        return false;
+    }
+}
+
+
+const getUserReferralInfo = async (req, res) => {
+    try {
+        if (!req.session.user || !req.session.user._id) {
+            return res.status(401).json({
+                success: false,
+                message: "User not logged in"
+            });
+        }
+        
+        const userId = req.session.user._id;
+        const user = await User.findById(userId).populate('redeemedUsers', 'name email createdOn');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+        
+        // Get referral statistics
+        const totalReferrals = user.redeemedUsers ? user.redeemedUsers.length : 0;
+        const wallet = await Wallet.findOne({ user: userId });
+        
+        // Calculate total earnings from referrals
+        let totalEarnings = 0;
+        if (wallet) {
+            const referralTransactions = wallet.transactions.filter(
+                t => t.type === 'credit' && t.description.includes('Referral bonus')
+            );
+            totalEarnings = referralTransactions.reduce((sum, t) => sum + t.amount, 0);
+        }
+        
+        res.json({
+            success: true,
+            referralInfo: {
+                referralCode: user.referalcode || "Not available",
+                totalReferrals,
+                totalEarnings,
+                referredUsers: user.redeemedUsers || []
+            }
+        });
+        
+    } catch (error) {
+        console.error("Error fetching referral info:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch referral information"
+        });
+    }
+};
+
 module.exports = {
     loadHomepage,
     pageNotFound,
@@ -416,5 +567,8 @@ module.exports = {
     loadLogin,
     login,
     logout,
-    shoppingPage
+    shoppingPage,
+    getUserReferralInfo,
+    addReferralBonus,
+    generateReferralCode
 }

@@ -79,7 +79,10 @@ const userSchema = new Schema({
             type:Date,
             default:Date.now
         }
-    }]
+    }],
+    referalcode: { type: String },
+redeemedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+
 })
 
 

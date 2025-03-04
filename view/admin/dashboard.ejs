@@ -317,25 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
   
-  // Update dashboard with data
-//   function updateDashboardData(data) {
-//     // Update summary stats
-//     document.getElementById('totalRevenue').textContent = formatCurrency(data.salesSummary.totalRevenue || 0);
-//     document.getElementById('orderCount').textContent = data.salesSummary.orderCount || 0;
-    
-//     // Update sales over time chart
-//     updateSalesChart(data.salesOverTime);
-    
-//     // Update top products
-//     updateTopProducts(data.topProducts);
-    
-//     // Update top categories
-//     updateTopCategories(data.topCategories);
-    
-//     // Update top brands
-//     updateTopBrands(data.topBrands);
-//   }
-  
+
 
 // Add this to your updateDashboardData function
 function updateDashboardData(data) {
@@ -368,81 +350,13 @@ function updateDashboardData(data) {
     updateTopBrands(data.topBrands);
 }
 
-  // Update sales over time chart
-//   function updateSalesChart(salesData) {
-//     const ctx = document.getElementById('salesOverTimeChart').getContext('2d');
-
-    
-//     console.log('Chart data:', salesData);
-
-
-//     const labels = salesData.map(item => item._id);
-//     const revenues = salesData.map(item => item.revenue);
-    
-//     if (salesChart) {
-//       salesChart.destroy();
-//     }
-
-//     if (salesData.length <= 1) {
-//     // Display a message on the canvas
-//     document.getElementById('salesOverTimeChart').parentElement.innerHTML = 
-//       '<div class="alert alert-info">Not enough data points to display a trend line. Try widening your date range.</div>';
-//     return;
-//   }
-    
-//     salesChart = new Chart(ctx, {
-//       type: 'line',
-//       data: {
-//         labels: labels,
-//         datasets: [{
-//           label: 'Revenue',
-//           data: revenues,
-//           borderColor: 'rgba(54, 162, 235, 1)',
-//           backgroundColor: 'rgba(54, 162, 235, 0.1)',
-//           tension: 0.4,
-//           fill: true
-//         }]
-//       },
-//       options: {
-//         responsive: true,
-//         plugins: {
-//           title: {
-//             display: true,
-//             text: 'Sales Revenue Over Time'
-//           },
-//           tooltip: {
-//             callbacks: {
-//               label: function(context) {
-//                 return formatCurrency(context.raw);
-//               }
-//             }
-//           }
-//         },
-//         scales: {
-//           y: {
-//             beginAtZero: true,
-//             ticks: {
-//               callback: function(value) {
-//                 return formatCurrency(value);
-//               }
-//             }
-//           }
-//         }
-//       }
-//     });
-//   }
   
 
 // Improved updateSalesChart function
 function updateSalesChart(salesData) {
     const chartContainer = document.getElementById('salesOverTimeChart').parentElement;
     
-    // if (!salesData || salesData.length < 2) {
-    //     // Display message for insufficient data
-    //     chartContainer.innerHTML = 
-    //         '<div class="alert alert-info">Not enough data points to display a trend line. Try widening your date range.</div>';
-    //     return;
-    // }
+   
     
     // Restore canvas if it was replaced
     if (!document.getElementById('salesOverTimeChart')) {

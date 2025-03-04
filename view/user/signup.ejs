@@ -213,6 +213,16 @@ form .button{
                 <% } %>
                 </div>
                 </div>
+                <div class="input-field">
+                  <input type="text" placeholder="Referral Code (Optional)" id="referralCode" name="referralCode" value="<%= locals.formData && formData.referralCode ? formData.referralCode : (locals.referralCode ? referralCode : '') %>" />
+                  <div class="error" id="error6">
+                      <% if(locals.message && locals.errorField === 'referralCode') { %>
+                          <div class="alert alert-danger text-center">
+                              <%= message %>
+                          </div>
+                      <% } %>
+                  </div>
+              </div>
                
             
             <div class="button">

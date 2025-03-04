@@ -25,26 +25,6 @@ const userAuth =(req,res,next)=>{
 }
 
 
-// const adminAuth = (req,res,next)=>{
-//     User.findOne({isAdmin:true})
-//     .then(data=>{
-//         if(data){
-//             next();
-//         }else{
-//             res.redirect("/admin/login");
-//         }
-//         if (req.session.admin){
-//             next(); // Session exists, proceed to the next middleware or route
-//         } else {
-//             res.redirect("/admin/login"); // No session, redirect to the login page
-//         }
-//     })
-//     .catch(error=>{
-//         console.log("Error in Admin auth middleware",error);
-//         res.status(500).send("Internal Server error")
-        
-//     })
-// }
 const adminAuth = (req, res, next) => {
     if (req.session.admin) {
         next(); // Session exists, proceed to the next middleware or route

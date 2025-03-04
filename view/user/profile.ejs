@@ -284,6 +284,11 @@
                    </a>
                  </li>
                  <li class="nav-item">
+                  <a class="nav-link" id="referal-tab" data-bs-toggle="tab" href="#referal" role="tab" aria-controls="referal" aria-selected="false">
+                    <i class="fi-rs-share mr-10"></i>Referrals
+                  </a>
+                </li>
+                 <li class="nav-item">
                    <a class="nav-link" href="/logout">
                      <i class="fi-rs-sign-out mr-10"></i>Logout
                    </a>
@@ -567,18 +572,62 @@
                </div>
 
 
-               <div class="tab-pane fade" id="referal" role="tabpanel" aria-labelledby="track-orders-tab">
-                 <div class="card">
-                   <div class="card-header">
-                     <h5 class="mb-0">Referal</h5>
-                   </div>
-                   <div class="card-body">
-                     <h6 class="mb-3">Refer your friends and earn money!</h6>
-                     <p>Share this link: <strong>></strong></p>
-                     <p>Earned: ₹</p>
-                   </div>
-                 </div>
-               </div>
+               <div class="tab-pane fade" id="referal" role="tabpanel" aria-labelledby="referal-tab">
+                <div class="card">
+                  <div class="card-header">
+                    <h5 class="mb-0">Referrals</h5>
+                  </div>
+                  <div class="card-body">
+                    <h6 class="mb-3">Refer your friends and earn ₹100!</h6>
+                    <div class="mb-4">
+                      <p class="mb-2">Your Referral Code:</p>
+                      <div class="d-flex align-items-center">
+                        <span class="bg-light p-2 rounded" id="referralCode" style="font-family: monospace; font-size: 1.2rem;"><%= user.referalcode || "Not available" %></span>
+                        <button type="button" class="btn btn-sm btn-primary ms-2" onclick="copyReferralCode()">Copy</button>
+                      </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                      <p class="mb-2">Share this link with your friends:</p>
+                      <div class="input-group">
+                        <input type="text" class="form-control" id="referralLink" readonly value="<%= referralLink %>">
+                        <button class="btn btn-primary" type="button" onclick="copyReferralLink()">Copy</button>
+                      </div>
+                    </div>
+                    
+                    <p>When your friend signs up using your code:</p>
+                    <ul>
+                      <li>You get ₹100 in your wallet</li>
+                      <li>Your friend gets ₹50 welcome bonus</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <div>
+                      <h6>Referral Statistics</h6>
+                      <p>Total earnings: ₹<span id="totalEarnings">0</span></p>
+                      <p>Friends referred: <span id="friendsReferred">0</span></p>
+                    </div>
+                    
+                    <div class="mt-4">
+                      <h6>Referred Friends</h6>
+                      <div class="table-responsive">
+                        <table class="table table-striped">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Date Joined</th>
+                            </tr>
+                          </thead>
+                          <tbody id="referredFriendsList">
+                            <!-- Will be populated with JavaScript -->
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
        </div>
      </div>
    </div>
@@ -588,6 +637,65 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
+
+
+  // Function to copy referral code
+  function copyReferralCode() {
+    const referralCode = document.getElementById('referralCode');
+    navigator.clipboard.writeText(referralCode.textContent)
+      .then(() => {
+        alert('Referral code copied to clipboard!');
+      })
+      .catch(err => {
+        console.error('Error copying text: ', err);
+      });
+  }
+  
+  // Function to copy referral link
+  function copyReferralLink() {
+    const referralLink = document.getElementById('referralLink');
+    navigator.clipboard.writeText(referralLink.value)
+      .then(() => {
+        alert('Referral link copied to clipboard!');
+      })
+      .catch(err => {
+        console.error('Error copying text: ', err);
+      });
+  }
+  
+  // Load referral statistics
+  document.getElementById('referal-tab').addEventListener('click', function() {
+    fetch('/user/referral-info')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('totalEarnings').textContent = data.referralInfo.totalEarnings;
+          document.getElementById('friendsReferred').textContent = data.referralInfo.totalReferrals;
+          
+          const tbody = document.getElementById('referredFriendsList');
+          tbody.innerHTML = '';
+          
+          if (data.referralInfo.referredUsers && data.referralInfo.referredUsers.length > 0) {
+            data.referralInfo.referredUsers.forEach(user => {
+              const row = document.createElement('tr');
+              const dateJoined = new Date(user.createdOn).toLocaleDateString();
+              row.innerHTML = `
+                <td>${user.name}</td>
+                <td>${dateJoined}</td>
+              `;
+              tbody.appendChild(row);
+            });
+          } else {
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center">No referrals yet</td></tr>';
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching referral info:', error);
+      });
+  });
+
+
   function getStatusClass(status) {
       switch(status.toLowerCase()) {
           case 'pending':
@@ -908,205 +1016,7 @@ function updateTransactionHistory(transactions) {
 }
 
 
-// Function to update wallet display
-// async function fetchWalletDetails() {
-//     try {
-//         const response = await fetch('/api/wallet/details');
-//         const data = await response.json();
-        
-//         if (data.success) {
-//             const walletBalance = document.getElementById('currentWalletBalance');
-//             if (walletBalance) {
-//                 // Animate the balance update
-//                 const currentBalance = parseFloat(walletBalance.textContent);
-//                 const newBalance = data.wallet.balance;
-                
-//                 animateValue(walletBalance, currentBalance, newBalance, 1000);
-//             }
-//         }
-//     } catch (error) {
-//         console.error('Error fetching wallet details:', error);
-//     }
-// }
 
-// document.addEventListener('DOMContentLoaded', () => {
-//     console.log('DOM loaded, fetching wallet details...');
-//     fetchWalletDetails();
-// });
-
-// async function fetchWalletDetails() {
-//     try {
-//         // Show loading state
-//         const walletBalanceElement = document.getElementById('currentWalletBalance');
-//         if (walletBalanceElement) {
-//             walletBalanceElement.innerHTML = '<small>Loading...</small>';
-//         }
-
-//         // Fetch both balance and transactions in parallel
-//         const [balanceResponse, transactionsResponse] = await Promise.all([
-//             fetch('/balance'),
-//             fetch('/transactions')
-//         ]);
-
-//         if (!balanceResponse.ok || !transactionsResponse.ok) {
-//             throw new Error('Failed to fetch wallet data');
-//         }
-
-//         const balanceData = await balanceResponse.json();
-//         const transactionsData = await transactionsResponse.json();
-
-//         console.log('Balance data:', balanceData);
-//         console.log('Transactions data:', transactionsData);
-
-//         // Update wallet balance
-//         if (balanceData.success) {
-//             if (walletBalanceElement) {
-//                 const formattedBalance = new Intl.NumberFormat('en-IN', {
-//                     style: 'currency',
-//                     currency: 'INR'
-//                 }).format(balanceData.balance);
-                
-//                 walletBalanceElement.innerHTML = formattedBalance;
-//             }
-//         }
-
-//         // Update transactions
-//         if (transactionsData.success) {
-//             updateTransactionHistory(transactionsData.transactions);
-//         }
-
-//     } catch (error) {
-//         console.error('Error fetching wallet details:', error);
-//         if (walletBalanceElement) {
-//             walletBalanceElement.innerHTML = '<span class="text-danger">Error loading balance</span>';
-//         }
-//         Swal.fire({
-//             icon: 'error',
-//             title: 'Error',
-//             text: 'Failed to load wallet details. Please refresh the page.'
-//         });
-//     }
-// }
-
-
-
-// function updateTransactionHistory(transactions) {
-//     const tableBody = document.querySelector('#wallet-history table tbody');
-//     if (!tableBody) {
-//         console.error('Transaction history table body not found');
-//         return;
-//     }
-
-//     let htmlContent = '';
-    
-//     if (Array.isArray(transactions) && transactions.length > 0) {
-//         transactions.forEach(transaction => {
-//             if (!transaction.timestamp || !transaction.type || !transaction.amount) {
-//                 console.warn('Invalid transaction data:', transaction);
-//                 return;
-//             }
-
-//             const date = new Date(transaction.timestamp).toLocaleDateString('en-IN', {
-//                 day: '2-digit',
-//                 month: 'short',
-//                 year: 'numeric',
-//                 hour: '2-digit',
-//                 minute: '2-digit'
-//             });
-
-//             const formattedAmount = new Intl.NumberFormat('en-IN', {
-//                 style: 'currency',
-//                 currency: 'INR'
-//             }).format(transaction.amount);
-
-//             htmlContent += `
-//                 <tr>
-//                     <td>${date}</td>
-//                     <td>
-//                         <span class="badge ${transaction.type === 'credit' ? 'bg-success' : 'bg-danger'}">
-//                             ${transaction.type.toUpperCase()}
-//                         </span>
-//                         ${transaction.description ? `
-//                             <br>
-//                             <small class="text-muted">${transaction.description}</small>
-//                         ` : ''}
-//                     </td>
-//                     <td class="${transaction.type === 'credit' ? 'text-success' : 'text-danger'}">
-//                         ${transaction.type === 'credit' ? '+' : '-'}${formattedAmount}
-//                     </td>
-//                 </tr>
-//             `;
-//         });
-//     } else {
-//         htmlContent = `
-//             <tr>
-//                 <td colspan="3" class="text-center">No transactions found</td>
-//             </tr>
-//         `;
-//     }
-
-//     tableBody.innerHTML = htmlContent;
-// }
-
-
-
-// async function addMoneyToWallet() {
-//     const amountInput = document.getElementById('walletAmount');
-//     const amount = parseFloat(amountInput.value);
-
-//     if (!amount || amount < 1 || isNaN(amount)) {
-//         Swal.fire({
-//             icon: 'error',
-//             title: 'Invalid Amount',
-//             text: 'Please enter a valid amount greater than 0'
-//         });
-//         return;
-//     }
-
-//     try {
-//         const response = await fetch('/add-money', {
-//             method: 'POST',
-//             headers: {
-//                 'Content-Type': 'application/json'
-//             },
-//             body: JSON.stringify({ amount })
-//         });
-
-//         if (!response.ok) {
-//             throw new Error(`HTTP error! status: ${response.status}`);
-//         }
-
-//         const data = await response.json();
-
-//         if (data.success) {
-//             Swal.fire({
-//                 icon: 'success',
-//                 title: 'Success',
-//                 text: 'Money added to wallet successfully!'
-//             }).then(() => {
-//                 amountInput.value = '';
-//                 fetchWalletDetails(); // Refresh wallet details
-//             });
-//         } else {
-//             throw new Error(data.message || 'Failed to add money to wallet');
-//         }
-//     } catch (error) {
-//         console.error('Error adding money to wallet:', error);
-//         Swal.fire({
-//             icon: 'error',
-//             title: 'Error',
-//             text: error.message || 'Failed to process your request'
-//         });
-//     }
-// }
-
-// Update the UI after order cancellation or return
-
-
-// function updateWalletAfterTransaction() {
-//     console.log('Updating wallet after transaction...');
-//     fetchWalletDetails();
-// }
 
 async function updateWalletAfterTransaction() {
     console.log('Updating wallet after transaction...');

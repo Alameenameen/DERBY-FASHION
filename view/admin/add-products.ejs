@@ -534,17 +534,7 @@ function validateForm() {
         isValid = false;
     }
 
-    // Validate sale price
-    // if (saleprice !== '') {  // Only validate if sale price is provided
-    //     if (!/^\d+(\.\d{1,2})?$/.test(saleprice) || parseFloat(saleprice) <= 0) {
-    //         displayErrorMessage('salePrice-error', 'Please enter a valid positive price.');
-    //         isValid = false;
-    //     } else if (parseFloat(saleprice) >= parseFloat(price)) {
-    //         displayErrorMessage('salePrice-error', 'Sale price must be less than regular price.');
-    //         isValid = false;
-    //     }
-    // }
-
+   
 
     // Validate category
     if (!category || category.trim() === "") {

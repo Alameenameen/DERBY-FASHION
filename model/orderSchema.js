@@ -8,6 +8,7 @@ const {Schema} = mongoose;
 const orderSchema = new Schema({
 
     orderedItems:[{
+        // _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
         product:{
             type:Schema.Types.ObjectId,
             ref:"Product",
@@ -34,14 +35,7 @@ const orderSchema = new Schema({
             type: Date
         }
     }],
-    // totalPrice:{
-    //     type:Number,
-    //     required:true
-    // },
-    // discount:{
-    //     type:Number,
-    //     default:0
-    // },
+   
   
     finalAmount:{
         type:Number,

@@ -34,7 +34,17 @@
     <!-- Customized Bootstrap Stylesheet -->
     <link href="css/style.css" rel="stylesheet">
     <link href="css/header.css" rel="stylesheet">
+<style>
+    .sign-in-link {
+  color: black; /* Change text color to black */
+  font-weight: bold; /* Make text bold */
+  text-decoration: none; /* Remove underline */
+}
 
+.sign-in-link:hover {
+  color: #333; /* Slightly darker color on hover */
+}
+</style>
 
 
 </head>
@@ -53,15 +63,12 @@
             </div>
             <div class="col-lg-6 text-center text-lg-right">
                 <div class="d-inline-flex align-items-center">
-                    <!-- <div class="btn-group"> -->
-                        <!-- <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown">My Account</button> -->
-                        <!-- <div class="dropdown-menu dropdown-menu-right"> -->
-                            <!-- <button class="dropdown-item" type="button">Sign in</button> -->
+                   
                           
             
                              <%if (user) {%>
                                 <div class="dropdown">
-                                    <a href="#" class="sign-in-link"><%=user.name%></a>
+                                    <a href="#" class="sign-in-link"><%=user.name.charAt(0).toUpperCase() + user.name.slice(1).toLowerCase()%></a>
                                     <div class="dropdown-content">
                                       <a href="/userProfile">Profile</a>
                                       <a href="/logout">logout</a>
@@ -74,16 +81,7 @@
                              <a href = "/login" class = "sign-in-link">Login</a>
                              <%}%>
                             <!-- <button class="dropdown-item" type="button">Sign up</button> -->
-                        <!-- </div> -->
-                    <!-- </div> -->
-                    <!-- <div class="btn-group mx-2">
-                        <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown">USD</button> -->
-                        <!-- <div class="dropdown-menu dropdown-menu-right">
-                            <button class="dropdown-item" type="button">EUR</button>
-                            <button class="dropdown-item" type="button">GBP</button>
-                            <button class="dropdown-item" type="button">CAD</button>
-                        </div>
-                    </div> -->
+                     
                     <div class="btn-group">
                         <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown">EN</button>
                         <div class="dropdown-menu dropdown-menu-right">
@@ -218,59 +216,7 @@
     </div>
     <!-- Navbar End -->
      <script>
-        // / Function to update all cart count displays
-// function updateCartCount(count) {
-//     const cartCountElements = document.querySelectorAll('.cart-count');
-//     cartCountElements.forEach(element => {
-//         element.textContent = count;
-//     });
-// }
-
-// // Function to add to cart
-// async function addToCart(productId, quantity, selectedSize) {
-//     try {
-//         const response = await fetch('/cart/add', {
-//             method: 'POST',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             },
-//             body: JSON.stringify({
-//                 productId,
-//                 quantity,
-//                 selectedSize
-//             })
-//         });
-        
-//         const data = await response.json();
-        
-//         if (data.success) {
-//             updateCartCount(data.cartCount);
-//             // Optional: Show success message
-//             showNotification('Item added to cart successfully');
-//         } else {
-//             showNotification(data.error || 'Error adding item to cart', 'error');
-//         }
-//     } catch (error) {
-//         console.error('Error:', error);
-//         showNotification('Error adding item to cart', 'error');
-//     }
-// }
-
-// // Helper function to show notifications
-// function showNotification(message, type = 'success') {
-//     // You can implement this based on your UI needs
-//     alert(message);
-// }
-
-// // Initialize cart count from server-side data
-// document.addEventListener('DOMContentLoaded', function() {
-//     const cartCountElement = document.querySelector('.cart-count');
-//     if (cartCountElement) {
-//         const initialCount = cartCountElement.textContent;
-//         updateCartCount(initialCount);
-//     }
-// });
-
+       
 
 
 function updateCartCount(count) {

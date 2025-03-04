@@ -232,21 +232,40 @@
         <% } %>
     </div>
 
-
     <% if (order.status !== 'payment_failed') { %>
-    <h2>Order Tracking</h2>
-    <div class="tracking">
-        <% const trackingSteps = ['Processing', 'Shipped', 'Out for Delivery', 'Delivered']; %>
-        <% const currentStepIndex = trackingSteps.indexOf(order.status); %>
-        <% trackingSteps.forEach((step, index) => { %>
-            <div class="tracking-step">
-                <div class="tracking-icon <%= index > currentStepIndex ? 'inactive' : '' %>">
-                    <%= index + 1 %>
+        <h2>Order Tracking</h2>
+        <div class="tracking">
+            <% 
+            const trackingSteps = [
+                { key: 'processing', label: 'Processing' },
+                { key: 'shipped', label: 'Shipped' },
+                { key: 'out_for_delivery', label: 'Out for Delivery' },
+                { key: 'delivered', label: 'Delivered' }
+            ];
+            
+            // Find the current step index based on order.status
+            let currentStepIndex = -1;
+            trackingSteps.forEach((step, index) => {
+                if (step.key === order.status.toLowerCase()) {
+                    currentStepIndex = index;
+                }
+            });
+            %>
+            
+            <% trackingSteps.forEach((step, index) => { %>
+                <div class="tracking-step">
+                    <div class="tracking-icon <%= index > currentStepIndex ? 'inactive' : 'active' %>">
+                        <%= index + 1 %>
+                    </div>
+                    <div class="step-label <%= index === currentStepIndex ? 'current' : '' %>">
+                        <%= step.label %>
+                    </div>
                 </div>
-                <div><%= step %></div>
-            </div>
-        <% }); %>
-    </div>
+            <% }); %>
+        </div>
+    <% } else { %>
+        <h2>Payment Failed</h2>
+        <p>There was an issue processing your payment. Please contact customer support.</p>
     <% } %>
 
     <% if (order.status !== 'payment_failed' && order.status !== 'cancelled') { %>
@@ -256,75 +275,108 @@
     <% } %>
 
    <!-- Replace your existing order summary sections with this updated code -->
-
    <h2>Items Ordered</h2>
    <%
- 
-
-   const isOnlineOrWalletPayment = order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet';
-
-   const calculateOrderTotals = (order) => {
-    const summary = {
-        originalSubtotal: 0,
-        currentSubtotal: 0,
-        refundedAmount: 0,
-        shippingCharge: order.shippingCharge || 50,
-        isFullyReturnedOrCancelled: false,
-        activeItems: 0,
-        returnRequestItems: 0,
-        couponDiscount: order.couponApplied ? (order.couponDetails.discountAmount || 0) : 0
-    };
-
-    // Calculate original subtotal
-    order.orderedItems.forEach(item => {
-        const itemTotal = item.quantity * item.price;
-        summary.originalSubtotal += itemTotal;
-    });
-
-    // Distribute the coupon discount proportionally across all items
-    const discountRatio = summary.originalSubtotal > 0 ? summary.couponDiscount / summary.originalSubtotal : 0;
-
-    order.orderedItems.forEach(item => {
-        const itemTotal = item.quantity * item.price;
-        const itemDiscount = itemTotal * discountRatio; // Proportional discount for the item
-        const paidItemTotal = itemTotal - itemDiscount; // Effective amount paid for this item
-
-        if (item.status === 'Return Request') {
-            summary.returnRequestItems++;
-            summary.refundedAmount += paidItemTotal; // Refund only the discounted price
-        } else if (item.status === 'cancelled' || item.status === 'Returned') {
-            summary.refundedAmount += paidItemTotal; 
-        } else {
-            summary.activeItems++;
-            summary.currentSubtotal += paidItemTotal;
-        }
-    });
-
-    // Check if order is fully returned/cancelled
-    summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
-        ['cancelled', 'Returned', 'Return Request'].includes(item.status)
-    );
-
-    // Adjust shipping refund if entire order is canceled/returned
-    if (summary.isFullyReturnedOrCancelled) {
-        if (order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet') {
-            summary.refundedAmount += summary.shippingCharge;
-        }
-    }
-
-    // Calculate final amounts
-    summary.originalTotal = summary.originalSubtotal + summary.shippingCharge;
-    summary.currentTotal = summary.isFullyReturnedOrCancelled ? 
-        summary.originalTotal : 
-        (summary.currentSubtotal + summary.shippingCharge - summary.couponDiscount);
-
-    return summary;
-};
-
-   const totals = calculateOrderTotals(order);
-   const showRefund = order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet';
-   %>
+      const isOnlineOrWalletPayment = order.PaymentMethod === 'Online' || order.PaymentMethod === 'Wallet';
    
+      const calculateOrderTotals = (order) => {
+       const summary = {
+           originalSubtotal: 0,
+           currentSubtotal: 0,
+           refundedAmount: 0,
+           shippingCharge: order.shippingCharge || 50,
+           isFullyReturnedOrCancelled: false,
+           activeItems: 0,
+           returnRequestItems: 0,
+           couponDiscount: order.couponApplied ? (order.couponDetails.discountAmount || 0) : 0,
+           currentTotal: 0,
+           originalTotal: 0,
+           couponMinPurchase: order.couponApplied ? (order.couponDetails.minPurchase || 0) : 0,
+           isCouponStillValid: true
+       };
+   
+       // Calculate original subtotal (sum of all items regardless of status)
+       order.orderedItems.forEach(item => {
+           const itemTotal = item.quantity * item.price;
+           summary.originalSubtotal += itemTotal;
+       });
+   
+       // Distribute the coupon discount proportionally across all items
+       const discountRatio = summary.originalSubtotal > 0 ? summary.couponDiscount / summary.originalSubtotal : 0;
+   
+       // Process each item based on status
+       order.orderedItems.forEach(item => {
+           const itemTotal = item.quantity * item.price;
+           const itemDiscount = itemTotal * discountRatio; // Proportional discount for the item
+           const effectiveItemPrice = itemTotal - itemDiscount; // What customer actually paid for this item
+           
+           if (item.status === 'Return Request') {
+               summary.returnRequestItems++;
+               if (isOnlineOrWalletPayment) {
+                   summary.refundedAmount += effectiveItemPrice;
+               }
+           } else if (item.status === 'cancelled' || item.status === 'Returned') {
+               if (isOnlineOrWalletPayment) {
+                   summary.refundedAmount += effectiveItemPrice;
+               }
+           } else {
+               summary.activeItems++;
+               summary.currentSubtotal += itemTotal; // Keep tracking original prices for active items
+           }
+       });
+   
+       // Check if order is fully returned/cancelled
+       summary.isFullyReturnedOrCancelled = order.orderedItems.every(item => 
+           ['cancelled', 'Returned', 'Return Request'].includes(item.status)
+       );
+   
+       // Check if remaining items still meet the minimum purchase requirement for the coupon
+       summary.isCouponStillValid = summary.currentSubtotal >= summary.couponMinPurchase;
+   
+       // Calculate active coupon discount (only if valid)
+       let activeCouponDiscount = 0;
+       if (summary.isCouponStillValid) {
+           activeCouponDiscount = summary.currentSubtotal > 0 ? 
+               (summary.currentSubtotal / summary.originalSubtotal) * summary.couponDiscount : 0;
+       }
+   
+       // Calculate original total (what customer actually paid)
+       summary.originalTotal = summary.originalSubtotal - summary.couponDiscount + summary.shippingCharge;
+       
+       // Calculate current total based on active items
+       if (summary.isFullyReturnedOrCancelled) {
+           summary.currentTotal = 0;
+           // Refund everything including shipping for online/wallet payments
+           if (isOnlineOrWalletPayment) {
+               summary.refundedAmount = summary.originalTotal;
+           }
+       } else {
+           // Current total with or without coupon based on minimum purchase
+           summary.currentTotal = summary.currentSubtotal - (summary.isCouponStillValid ? activeCouponDiscount : 0) + summary.shippingCharge;
+           
+           // If coupon is no longer valid, add the already discounted amount to refund
+           if (!summary.isCouponStillValid && isOnlineOrWalletPayment) {
+               // Calculate the portion of coupon discount applied to active items
+               const activeItemsOriginalDiscount = (summary.currentSubtotal / summary.originalSubtotal) * summary.couponDiscount;
+               
+               // Add this to refunded amount since customer now needs to pay full price for active items
+               summary.refundedAmount -= activeItemsOriginalDiscount;
+           }
+       }
+   
+       // If there's only one item left active, check if cancelling it would require shipping refund
+       if (summary.activeItems === 1 && order.orderedItems.length > 1) {
+           // Store the shipping refund info for the UI
+           summary.willRefundShippingIfLastItemCancelled = true;
+       }
+   
+       return summary;
+      };
+   
+      const totals = calculateOrderTotals(order);
+      const showRefund = isOnlineOrWalletPayment;
+   %>
+      
    <table>
        <thead>
            <tr>
@@ -337,152 +389,114 @@
                <th>Actions</th>
            </tr>
        </thead>
-   
+      
        <tbody>
-        <% order.orderedItems.forEach(item => { %>
-            <tr>
-                <td data-label="Product"><%= item.product.productName %></td>
-                <td>
-                    <img src="/uploads/<%= item.product.productImage[0] %>" 
-                         alt="<%= item.product.productName %>"
-                         class="img-fluid rounded-circle"
-                         style="width: 40px; height: 40px;">
-                </td>
-                <td data-label="Quantity"><%= item.quantity %></td>
-                <td data-label="Price">₹<%= item.price.toFixed(2) %></td>
-                <td data-label="Total">
-                    <% if ((item.status === 'cancelled' || item.status === 'Returned') && showRefund) { %>
-                        <s>₹<%= (item.quantity * item.price).toFixed(2) %></s>
-                        <span class="text-muted">(Refunded)</span>
-                    <% } else { %>
-                        ₹<%= (item.quantity * item.price).toFixed(2) %>
-                    <% } %>
-                </td>
-                <td data-label="Status">
-                    <% if (order.status === 'Returned' && item.status === 'Return Request') { %>
-                        <span class="badge bg-success">Returned</span>
-                    <% } else { %>
-                        <span class="badge bg-info"><%= item.status %></span>
-                    <% } %>
-                </td>
-                
-                <td data-label="Actions">
-                    <% if ((item.status === 'pending' || item.status === 'processing') && 
-                          order.status !== 'cancelled') { %>
-                        <button class="btn btn-danger btn-sm cancel-item-btn" 
-                                data-order-id="<%= order._id %>" 
-                                data-item-id="<%= item._id %>">
-                            Cancel Item
-                        </button>
-                    <% } %>
-                    
-                    <% 
-                    // Calculate days since delivery
-                    let showReturnButton = false;
-                    if (item.status === 'delivered' && 
-                        order.status === 'delivered' && 
-                        !['Return Request', 'Returned', 'cancelled'].includes(item.status)) {
-                        
-                        // Check for deliveredDate instead of deliveredAt
-                        const deliveredDate = new Date(order.deliveredDate);
-                        const currentDate = new Date();
-                        
-                        // Only calculate if deliveredDate is valid
-                        if (deliveredDate instanceof Date && !isNaN(deliveredDate)) {
-                            const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
-                            showReturnButton = daysSinceDelivery <= 7;
-                        }
-                    }
-                    %>
-                    
-                   
-                    
-                    <% if (showReturnButton) { %>
-                        <button class="btn btn-warning btn-sm return-item-btn" 
-                                data-order-id="<%= order._id %>" 
-                                data-item-id="<%= item._id %>">
-                            Return Item
-                        </button>
-                    <% } %>
-                    
-                    <% if (item.status === 'Return Request') { %>
-                        <span class="badge bg-warning">Return Pending</span>
-                    <% } %>
-                </td>
-            </tr>
-        <% }); %>
-    </tbody>
-     <!-- <tbody>
-           <% order.orderedItems.forEach(item => { %>
-               <tr>
+           <% order.orderedItems.forEach(item => { 
+               const itemTotal = item.quantity * item.price;
+               const isCancelledOrReturned = item.status === 'cancelled' || item.status === 'Returned' || item.status === 'Return Request';
+               const isPendingReturn = item.status === 'Return Request';
+
+
+               // Calculate the effective price with coupon discount
+               const discountRatio = totals.originalSubtotal > 0 ? 
+                   (order.couponApplied ? order.couponDetails.discountAmount : 0) / totals.originalSubtotal : 0;
+               const effectiveItemPrice = itemTotal - (itemTotal * discountRatio);
+           %>
+               <tr class="<%= isCancelledOrReturned ? 'cancelled-item' : (isPendingReturn ? 'pending-return-item' : '') %>">
                    <td data-label="Product"><%= item.product.productName %></td>
                    <td>
                        <img src="/uploads/<%= item.product.productImage[0] %>" 
-                            alt="<%= item.product.productName %>"
-                            class="img-fluid rounded-circle"
-                            style="width: 40px; height: 40px;">
+                           alt="<%= item.product.productName %>"
+                           class="img-fluid rounded-circle"
+                           style="width: 40px; height: 40px;">
                    </td>
                    <td data-label="Quantity"><%= item.quantity %></td>
                    <td data-label="Price">₹<%= item.price.toFixed(2) %></td>
                    <td data-label="Total">
-                       <% if ((item.status === 'cancelled' || item.status === 'Returned') && showRefund) { %>
-                           <s>₹<%= (item.quantity * item.price).toFixed(2) %></s>
-                           <span class="text-muted">(Refunded)</span>
+                       <% if (isCancelledOrReturned && showRefund) { %>
+                           <s>₹<%= itemTotal.toFixed(2) %></s>
+                           <div class="refund-details">
+                               <span class="text-muted">(Refunded: ₹<%= effectiveItemPrice.toFixed(2) %>)</span>
+                           </div>
+                           <% } else if (isPendingReturn) { %>
+                            <s>₹<%= itemTotal.toFixed(2) %></s>
+                            <div class="return-pending-details">
+                                <span class="text-warning">(Return pending approval)</span>
+                            </div>
                        <% } else { %>
-                           ₹<%= (item.quantity * item.price).toFixed(2) %>
+                           ₹<%= itemTotal.toFixed(2) %>
                        <% } %>
                    </td>
                    <td data-label="Status">
-                    <% if (order.status === 'Returned' && item.status === 'Return Request') { %>
-                        <span class="badge bg-success">Returned</span>
-                    <% } else { %>
-                        <span class="badge bg-info"><%= item.status %></span>
-                    <% } %>
+                       <% if (order.status === 'Returned' && item.status === 'Return Request') { %>
+                           <span class="badge bg-success">Returned</span>
+                       <% } else { %>
+                        <span class="badge bg-<%= 
+                        item.status === 'delivered' ? 'success' : 
+                        item.status === 'Returned' ? 'info' : 
+                        item.status === 'Return Request' ? 'warning' : 
+                        item.status === 'cancelled' ? 'danger' : 
+                        'secondary' 
+                    %>"><%= item.status %></span>
+                       <% } %>
                    </td>
                    
                    <td data-label="Actions">
-                    <% if ((item.status === 'pending' || item.status === 'processing') && 
-                          order.status !== 'cancelled') { %>
-                        <button class="btn btn-danger btn-sm cancel-item-btn" 
-                                data-order-id="<%= order._id %>" 
-                                data-item-id="<%= item._id %>">
-                            Cancel Item
-                        </button>
-                    <% } %>
-                    
-                    <% 
-                    // Calculate days since delivery
-                    let showReturnButton = false;
-                    if (order.status === 'delivered') {
-                        const deliveredDate = new Date(order.deliveredAt);
-                        const currentDate = new Date();
-                        const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
-                        showReturnButton = daysSinceDelivery <= 7;
-                    }
-                    %>
-                    
-                    <% if (showReturnButton) { %>
-                        <button class="btn btn-warning btn-sm return-item-btn" 
-                                data-order-id="<%= order._id %>" 
-                                data-item-id="<%= item._id %>">
-                            Return Item
-                        </button>
-                    <% } %>
-                    
-                    <% if (item.status === 'Return Request') { %>
-                        <span class="badge bg-warning">Return Pending</span>
-                    <% } %>
-                </td>
-                   
+                       <% if ((item.status === 'pending' || item.status === 'processing') && 
+                           order.status !== 'cancelled') { %>
+                           <button class="btn btn-danger btn-sm cancel-item-btn" 
+                               data-order-id="<%= order._id %>" 
+                               data-item-id="<%= item._id %>"
+                               <% if (totals.activeItems === 1 && !isCancelledOrReturned && !isPendingReturn) { %>
+                                   data-is-last-item="true"
+                                   title="Cancelling this item will cancel the entire order and refund shipping"
+                               <% } %>>
+                               Cancel Item
+                           </button>
+                       <% } %>
+                       
+                       <% 
+                       let showReturnButton = false;
+                       if (item.status === 'delivered' && 
+                           !['Return Request', 'Returned', 'cancelled'].includes(item.status)) {
+                           
+                           const deliveredDate = order.deliveredDate ? new Date(order.deliveredDate) : null;
+                           const currentDate = new Date();
+                           
+                           if (deliveredDate instanceof Date && !isNaN(deliveredDate)) {
+                               const daysSinceDelivery = Math.floor((currentDate - deliveredDate) / (1000 * 60 * 60 * 24));
+                               showReturnButton = daysSinceDelivery <= 7;
+                           } else {
+                               console.log(`Invalid deliveredDate for order ${order._id}: ${order.deliveredDate}`);
+                           }
+                       }
+                       %>
+                       
+                       <% if (showReturnButton) { %>
+                           <button class="btn btn-warning btn-sm return-item-btn" 
+                               data-order-id="<%= order._id %>" 
+                               data-item-id="<%= item._id %>"
+                               <% if (totals.activeItems === 1 && !isCancelledOrReturned && !isPendingReturn) { %>
+                                   data-is-last-item="true"
+                                   title="Returning this item will return the entire order and refund shipping"
+                               <% } %>>
+                               Return Item
+                           </button>
+                       <% } %>
+                       
+                       <% if (item.status === 'Return Request') { %>
+                           <span class="badge bg-warning">Return Pending</span>
+                       <% } %>
+                   </td>
                </tr>
            <% }); %>
-       </tbody> -->
+       </tbody>
    </table>
-
- <!-- Updated Order Summary Section -->
-<div class="total-section">
+   
+   <!-- Enhanced Order Summary Section -->
+   <div class="total-section">
     <div class="total-row">
-        <span>Subtotal:</span>
+        <span>Original Subtotal:</span>
         <span>₹<%= totals.originalSubtotal.toFixed(2) %></span>
     </div>
     
@@ -490,33 +504,76 @@
         <div class="total-row discount">
             <span>Coupon Applied (<%= order.couponDetails.couponName %>):</span>
             <span>-₹<%= (order.couponDetails.discountAmount || 0).toFixed(2) %></span>
+            
+            <% if (totals.couponMinPurchase > 0) { %>
+                <div class="coupon-details">
+                    <small>(Min. purchase: ₹<%= totals.couponMinPurchase.toFixed(2) %>)</small>
+                </div>
+            <% } %>
         </div>
+        
+        <% if (!totals.isFullyReturnedOrCancelled && !totals.isCouponStillValid && totals.currentSubtotal > 0) { %>
+            <div class="total-row coupon-invalid">
+                <span>Coupon no longer valid:</span>
+                <span>+₹<%= ((totals.currentSubtotal / totals.originalSubtotal) * totals.couponDiscount).toFixed(2) %></span>
+                <div class="coupon-details">
+                    <small>(Current subtotal ₹<%= totals.currentSubtotal.toFixed(2) %> below minimum ₹<%= totals.couponMinPurchase.toFixed(2) %>)</small>
+                </div>
+            </div>
+        <% } %>
     <% } %>
     
     <div class="total-row">
         <span>Shipping Charge:</span>
-        <span>₹<%= totals.shippingCharge.toFixed(2) %></span>
+        <% if (totals.shippingRefunded && isOnlineOrWalletPayment) { %>
+            <span><s>₹<%= totals.shippingCharge.toFixed(2) %></s> <span class="text-success">(Refunded)</span></span>
+        <% } else { %>
+            <span>₹<%= totals.shippingCharge.toFixed(2) %></span>
+        <% } %>
     </div>
     
     <div class="total-row grand-total">
-        <span>Amount Paid:</span>
+        <span>Original Amount Paid:</span>
         <span>₹<%= order.finalAmount.toFixed(2) %></span>
     </div>
     
-    <% if (totals.isFullyReturnedOrCancelled && isOnlineOrWalletPayment) { %>
-        <div class="total-row text-success">
+    <% if (totals.refundedAmount > 0 && isOnlineOrWalletPayment) { %>
+        <div class="total-row text-success refunded-amount">
             <span>Refunded Amount:</span>
             <span>₹<%= totals.refundedAmount.toFixed(2) %></span>
+            
+            <% if (totals.shippingRefunded) { %>
+                <div class="refund-details">
+                    <small>(Includes shipping charge of ₹<%= totals.shippingCharge.toFixed(2) %>)</small>
+                </div>
+            <% } %>
         </div>
-    <% } else if (isOnlineOrWalletPayment && totals.refundedAmount > 0) { %>
-        <div class="total-row text-success">
-            <span>Refunded Amount:</span>
-            <span>₹<%= totals.refundedAmount.toFixed(2) %></span>
+        
+        <% if (!totals.isFullyReturnedOrCancelled) { %>
+            <div class="total-row current-total">
+                <span>Current Order Total:</span>
+                <span>₹<%= totals.currentTotal.toFixed(2) %></span>
+            </div>
+        <% } %>
+    <% } %>
+    
+    <% if (totals.returnRequestItems > 0 && isOnlineOrWalletPayment) { %>
+        <div class="info-row">
+            <i class="fas fa-info-circle"></i>
+            <span>Return request(s) pending approval. Refund will be processed after approval.</span>
         </div>
     <% } %>
     
+   
+    
+    <% if (totals.isFullyReturnedOrCancelled) { %>
+        <div class="total-row text-<%= totals.returnRequestItems > 0 ? 'warning' : 'danger' %> order-status">
+            <span>Order Status:</span>
+            <span><%= order.status.toUpperCase() %></span>
+        </div>
+    <% } %>
 </div>
-
+   
     <h2>Shipping Address</h2>
     <p>
         <strong>Name:</strong> <%= order.address.name %><br>

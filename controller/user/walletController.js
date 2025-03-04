@@ -38,66 +38,6 @@ const getWalletTransactions = async(req, res) => {
     }
 }
 
-// const addMoneyToWallet = async (req, res) => {
-//     try {
-//         const { amount } = req.body;
-//         const userId = req.session.user._id;
-
-//         const razorpayOrder = await razorpayInstance.orders.create({
-//             amount: amount * 100,
-//             currency: "INR",
-//             receipt: `wallet_${Date.now()}`,
-//             payment_capture: 1
-//         });
-
-//         res.json({
-//             success: true,
-//             orderId: razorpayOrder.id,
-//             amount: amount,
-//             currency: "INR",
-//             key: process.env.RAZORPAY_KEY_ID
-//         });
-//     } catch (error) {
-//         res.status(500).json({ error: "Failed to process wallet recharge" });
-//     }
-// };
-
-// const verifyWalletRecharge = async (req, res) => {
-//     try {
-//         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
-//         const userId = req.session.user._id;
-
-//         // Verify signature
-//         const secret = process.env.RAZORPAY_KEY_SECRET;
-//         const generated_signature = crypto
-//             .createHmac('sha256', secret)
-//             .update(razorpay_order_id + "|" + razorpay_payment_id)
-//             .digest('hex');
-
-//         if (generated_signature !== razorpay_signature) {
-//             return res.status(400).json({ success: false, error: "Payment verification failed" });
-//         }
-
-//         // Update wallet
-//         let wallet = await Wallet.findOne({ user: userId });
-//         if (!wallet) {
-//             wallet = new Wallet({ user: userId });
-//         }
-
-//         wallet.balance += parseFloat(amount);
-//         wallet.transactions.push({
-//             amount: parseFloat(amount),
-//             type: 'credit',
-//             description: 'Wallet recharge'
-//         });
-
-//         await wallet.save();
-//         res.json({ success: true, balance: wallet.balance });
-//     } catch (error) {
-//         res.status(500).json({ error: "Failed to verify wallet recharge" });
-//     }
-// };
-
 
 
 const addMoneyToWallet = async (req, res) => {
