@@ -96,3 +96,4 @@
 [2025-03-03T09:12:20.334Z] PUT /admin/orderList/updateStatus/67c5724c56956b8afafa91d3 - Body: {"status":"delivered"}
 [2025-03-03T09:12:52.469Z] PUT /admin/orderList/updateItemStatus/67c5724c56956b8afafa91d3 - Body: {"itemId":"67c5724c56956b8afafa91d4","status":"Returned"}
 [2025-03-03T09:13:26.971Z] PUT /admin/orderList/updateItemStatus/67c5724c56956b8afafa91d3 - Body: {"itemId":"67c5724c56956b8afafa91d5","status":"Returned"}
+[2025-03-04T07:27:01.462Z] PUT /admin/orderList/updateStatus/67c6aa3f818972e1547ba36b - Body: {"status":"shipped"}
