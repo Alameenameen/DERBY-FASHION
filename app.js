@@ -24,14 +24,27 @@ db();
 
 app.use(express.json());           //convert json data to read format
 app.use(express.urlencoded({extended: true}))      //convert queries or string data to........
+// app.use(session({
+//     secret:process.env.SESSION_SECRET,
+//     resave:false,
+//     saveUninitialized:true,
+//     cookie:{
+//         maxAge:1000 * 60 * 60 * 24
+//     }
+// }))
+
+
 app.use(session({
-    secret:process.env.SESSION_SECRET,
-    resave:false,
-    saveUninitialized:true,
-    cookie:{
-        maxAge:1000 * 60 * 60 * 24
-    }
-}))
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24,
+        secure: true, // Use true if using HTTPS
+        sameSite: "none" // Important for Google OAuth on HTTPS
+    },
+    proxy: true // Required if using HTTPS hosting
+}));
 
 app.use(flash());
 app.use(cartCountMiddleware);
