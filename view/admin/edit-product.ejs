@@ -669,6 +669,57 @@ function displayErrorMessage(id, message) {
 }
 
 
+// Add this script to your edit-product.ejs file, at the end of your JavaScript section
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Create a hidden input for existing images
+    const form = document.querySelector('form');
+    let existingImagesInput = document.createElement('input');
+    existingImagesInput.type = 'hidden';
+    existingImagesInput.name = 'existingImages';
+    existingImagesInput.id = 'existingImagesInput';
+    
+    // Store all current product images from the page
+    const currentImages = [];
+    document.querySelectorAll('[data-image]').forEach(imgContainer => {
+        currentImages.push(imgContainer.getAttribute('data-image'));
+    });
+    
+    // Set initial value
+    existingImagesInput.value = JSON.stringify(currentImages);
+    form.appendChild(existingImagesInput);
+    
+    // Override the deleteImage function to update our hidden input
+    window.originalDeleteImage = window.deleteImage;
+    window.deleteImage = function(imageName, productId) {
+        fetch('/admin/deleteImage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                imageNameToServer: imageName,
+                productIdToServer: productId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status) {
+                // Remove the image from the page
+                document.querySelector(`[data-image="${imageName}"]`).remove();
+                
+                // Update the hidden input value by removing this image
+                let existingInput = document.getElementById('existingImagesInput');
+                let currentImagesArray = JSON.parse(existingInput.value);
+                currentImagesArray = currentImagesArray.filter(img => img !== imageName);
+                existingInput.value = JSON.stringify(currentImagesArray);
+                
+                console.log('Updated existing images:', existingInput.value);
+            }
+        });
+    };
+});
+
        </script>
 <%- include("../../view/partials/admin/footer") %>
        

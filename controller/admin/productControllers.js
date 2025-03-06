@@ -213,6 +213,7 @@ const getEditProduct = async (req, res) => {
     }
 };
 
+
 const editProducts = async (req, res) => {
     try {
         const id = req.params.id;
@@ -226,16 +227,33 @@ const editProducts = async (req, res) => {
             brand,
             sizes,
             croppedImages = [],
-            existingImages = []
+            // existingImages = []
         } = req.body;
 
-
-        let existingImagesArray = existingImages;
-        if (typeof existingImages === 'string') {
-            existingImagesArray = [existingImages];
-        } else if (!Array.isArray(existingImages)) {
-            existingImagesArray = [];
+        let existingImagesArray = [];
+        
+        // Parse existingImages if it exists - it could be a JSON string
+        if (req.body.existingImages) {
+            try {
+                if (typeof req.body.existingImages === 'string') {
+                    // Try to parse as JSON first (if it's an array in string form)
+                    existingImagesArray = JSON.parse(req.body.existingImages);
+                } else {
+                    // If it's already an array
+                    existingImagesArray = req.body.existingImages;
+                }
+                
+                // Make sure it's an array
+                if (!Array.isArray(existingImagesArray)) {
+                    existingImagesArray = [existingImagesArray];
+                }
+            } catch (e) {
+                // If parsing fails, treat it as a string
+                existingImagesArray = [req.body.existingImages];
+            }
         }
+        
+        console.log('Existing images from request:', existingImagesArray);
 
         // Validation checks
         if (!productName || !description || !regularPrice || !category || !brand) {
@@ -245,16 +263,16 @@ const editProducts = async (req, res) => {
         // Find existing product
         const product = await Product.findById(id);
 
+        if (!product) {
+            return res.status(404).json({ error: "Product not found" });
+        }
+        
+        // Handle offer/sale price
+        let salePrice;
         if (product.offer && product.offer.isActive) {
             const offerPrice = regularPrice - (regularPrice * (product.offer.percentage / 100));
             salePrice = parseInt(offerPrice);
         }
-
-        if (!product) {
-            return res.status(404).json({ error: "Product not found" });
-        }
-
-        
 
         // Parse and validate sizes
         let sizeQuantities = [];
@@ -285,13 +303,12 @@ const editProducts = async (req, res) => {
         // Calculate total quantity
         const totalQuantity = sizeQuantities.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
 
-
+        // Find images to delete (FIX: use existingImagesArray instead of undefined existingImages)
         const imagesToDelete = product.productImage.filter(
-            img => !existingImages.includes(img)
+            img => !existingImagesArray.includes(img)
         );
 
-
-        console.log('Existing images from form:', existingImagesArray);
+        console.log('Images to delete:', imagesToDelete);
 
         // Actually delete files from server
         imagesToDelete.forEach(img => {
@@ -300,6 +317,7 @@ const editProducts = async (req, res) => {
                 fs.unlinkSync(imagePath);
             }
         });
+        
         // Process new images
         let updatedImages = product.productImage.filter(img => existingImagesArray.includes(img));
         console.log('Retained images:', updatedImages); // Start with existing images
@@ -333,13 +351,18 @@ const editProducts = async (req, res) => {
             category: categoryData._id,
             brand: brandData._id,
             regularPrice,
-            salePrice,
+            // salePrice,
             color,
             sizes: sizeQuantities,
             quantity: totalQuantity,
             productImage: updatedImages,
             status: totalQuantity > 0 ? "Available" : "out of stock"
         };
+
+        // Add salePrice to updateFields if it exists
+        if (salePrice !== undefined) {
+            updateFields.salePrice = salePrice;
+        }
 
         await Product.findByIdAndUpdate(id, updateFields, { new: true });
         return res.redirect("/admin/products?success=true");
@@ -348,8 +371,6 @@ const editProducts = async (req, res) => {
         return res.status(500).redirect("/admin/pageerror");
     }
 };
-
-
 
 const deleteSingleImage = async (req, res) => {
     try {
