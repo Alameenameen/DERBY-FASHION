@@ -17,7 +17,7 @@ const logger = require('../middlewares/logger');
 router.use(noCache)
 
 router.get("/pageNotFound", userController.pageNotFound)
-router.get("/",isAuthenticated,userController.loadHomepage);
+router.get("/",userController.loadHomepage);
 router.get("/shop",productController.getProductsByCategory)
 
 

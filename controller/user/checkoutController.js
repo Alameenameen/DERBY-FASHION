@@ -271,6 +271,10 @@ const placeOrder = async (req, res) => {
                 payment_capture: 1
             });
             
+            if (!razorpayOrder || !razorpayOrder.id) {
+                throw new Error("Failed to create Razorpay order");
+            }
+
             orderData.razorpayOrderId = razorpayOrder.id;
             
             // Create order

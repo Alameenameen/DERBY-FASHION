@@ -7,7 +7,7 @@ const env = require("dotenv").config();
 passport.use(new GoogleStrategy({
     clientID:process.env.GOOGLE_CLIENT_ID,
     clientSecret:process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL:"http://localhost:3030/auth/google/callback"
+    callbackURL:"https://derby-ameen.shop/auth/google/callback"
 },
 
 
@@ -29,6 +29,8 @@ async (accessToken,refreshToken,profile,done)=>{
         return done(error,null)
     }
 }));
+
+
 
 
 passport.serializeUser((user,done)=>{

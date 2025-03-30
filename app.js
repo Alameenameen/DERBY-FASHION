@@ -23,7 +23,8 @@ db();
 
 
 app.use(express.json());           //convert json data to read format
-app.use(express.urlencoded({extended: true}))      //convert queries or string data to........
+app.use(express.urlencoded({extended: true}))    
+  //convert queries or string data to........
 app.use(session({
     secret:process.env.SESSION_SECRET,
     resave:false,
@@ -32,6 +33,9 @@ app.use(session({
         maxAge:1000 * 60 * 60 * 24
     }
 }))
+
+
+
 
 app.use(flash());
 app.use(cartCountMiddleware);
