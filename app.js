@@ -59,7 +59,7 @@ app.use('/admin',adminRouter)
 
 
 
-const PORT = 3040 || process.env.PORT
+const PORT = 3030 || process.env.PORT
 app.listen(PORT,()=>{
     console.log(`Server running : http://localhost:${PORT}`);
     
