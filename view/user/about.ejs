@@ -1,0 +1,84 @@
+
+<%-include("../../view/partials/user/header")%>
+
+<style>
+    .about-section {
+    background-color: #111;
+    padding: 60px 20px;
+    border-radius: 12px;
+}
+
+.about-title {
+    font-size: 2.5rem;
+    color: orange;
+    font-weight: 700;
+}
+
+.about-text {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #eee;
+}
+
+.explore-btn {
+    background-color: orange;
+    color: #111;
+    border: none;
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.explore-btn:hover {
+    background-color: #fff;
+    color: orange;
+    border: 1px solid orange;
+}
+
+/* Responsive tweaks */
+@media (max-width: 767px) {
+    .about-title {
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    .about-text {
+        text-align: center;
+    }
+
+    .explore-btn {
+        display: block;
+        margin: 20px auto 0;
+    }
+}
+
+</style>
+
+<div class="about-section container my-5">
+    <div class="row align-items-center">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <img src='/img/zilva-logo-2.png' alt="About Us" class="img-fluid rounded shadow">
+        </div>
+        <div class="col-lg-6 text-white">
+            <h2 class="about-title">About ZILVA SPARK</h2>
+            <p class="about-text mt-4">
+                Welcome to <strong>ZILVA SPARK</strong> – your ultimate destination for stylish and affordable fashion. We blend trend, quality, and value to bring you a shopping experience that sparks confidence and comfort. Whether you're looking for casuals, classics, or the next big trend, we’ve got you covered.
+            </p>
+            <p class="about-text">
+                We’re more than just an online store – we’re a community of fashion-forward minds who believe that great style should be accessible to everyone.
+            </p>
+            <button class="btn explore-btn mt-3">Explore Our Collection</button>
+        </div>
+    </div>
+</div>
+
+<!-- Optional JS for Button -->
+<script>
+    document.querySelector('.explore-btn')?.addEventListener('click', () => {
+        window.location.href = '/shop';
+    });
+</script>
+
+
+<%-include("../../view/partials/user/footer")%>

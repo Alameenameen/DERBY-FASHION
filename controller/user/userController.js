@@ -17,6 +17,18 @@ const pageNotFound = async(req,res)=>{
     }
 }
 
+const getContactPage = async(req, res) => {
+    
+    res.render('contact'); // contact.ejs in views/
+};
+
+
+const getAboutPage = async(req, res) => {
+    
+    res.render('about'); // contact.ejs in views/
+};
+
+
 
 const loadHomepage = async (req, res) => {
     try {
@@ -570,5 +582,7 @@ module.exports = {
     shoppingPage,
     getUserReferralInfo,
     addReferralBonus,
-    generateReferralCode
+    generateReferralCode,
+    getContactPage,
+    getAboutPage
 }

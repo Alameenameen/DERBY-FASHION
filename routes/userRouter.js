@@ -19,6 +19,9 @@ router.use(noCache)
 router.get("/pageNotFound", userController.pageNotFound)
 router.get("/",userController.loadHomepage);
 router.get("/shop",productController.getProductsByCategory)
+router.get("/contact",userController.getContactPage)
+router.get("/about",userController.getAboutPage)
+
 
 
 router.get("/signup",userController.loadSignup);

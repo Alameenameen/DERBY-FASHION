@@ -145,7 +145,7 @@ const getProductsByCategory = async (req, res) => {
         let productsQuery = Product.find(query).populate('category');
 
         // Apply sorting based on the sort parameter
-        switch(sort) {
+        switch(sort) {                                          
             case 'popularity':
                 productsQuery = productsQuery.sort('-views');
                 break;
